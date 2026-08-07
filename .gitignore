@@ -32,6 +32,17 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
+
+# local PGlite development database
+/.pglite/
+/.pglite-*/
+
+# local editor and AI-tool state
+/.claude/
+/.codex/
+/.cursor/
+/.impeccable/
 
 # vercel
 .vercel

@@ -1,26 +1,561 @@
 @import "tailwindcss";
 
+/* ==========================================================================
+   THE MARKER ZINE
+   --------------------------------------------------------------------------
+   Everything here is one object: a photocopied zine somebody drew by hand to
+   explain the rules of a family sweepstake. Nothing is a "card". Nothing is a
+   1px hairline. Every container is a wobbled marker box, every emphasis is a
+   highlighter swipe laid down over the ink, and the only geometry allowed to
+   be perfect is the data.
+
+   The zine stays on gentle cream stock in every colour-scheme preference.
+   ========================================================================== */
+
+/* ----------------------------------------------------------------- ink --- */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* The stock and the pen. */
+  --bg: #fff8ec;
+  --surface: #fffdf7;
+  --surface-sunk: #f4ead6;
+  --ink: #111111;
+  --ink-soft: #5a5044;
+  --line: #111111;
+  /* Slider tracks are drawn furniture, not chrome. */
+  --track: #ddd0b8;
+
+  /* The three highlighters. These are FILLS, never text. */
+  --hl-yellow: #ffe34d;
+  --hl-pink: #ff6bae;
+  --hl-teal: #00c7b7;
+
+  /* Ink-weight versions, for when a highlighter colour has to carry text. */
+  --ink-pink: #b3005e;
+  --ink-teal: #00786e;
+
+  /* The primary action is a yellow highlighter block with ink lettering.
+     Deliberately not a coloured pill: in this world a button is a marker box
+     someone has filled in. */
+  --primary: #ffe34d;
+  --primary-ink: #111111;
+  --primary-soft: #fff3bc;
+
+  --danger: #c0143c;
+  --focus: #0a5cd6;
+
+  /**
+   * Marker boxes wobble. Four radii so adjacent boxes never rhyme.
+   *
+   * These are for small controls only — swatches, day cells, tick boxes — where
+   * an 11px drawn `border-image` would swamp a 44px target. Anything bigger is
+   * a `.drawn` box.
+   */
+  --radius: 20px 7px 18px 9px / 9px 18px 7px 20px;
+  --radius-b: 8px 20px 9px 17px / 18px 8px 20px 8px;
+  --radius-c: 17px 10px 22px 7px / 7px 20px 9px 19px;
+  --radius-d: 9px 18px 7px 21px / 20px 9px 17px 8px;
+
+  /* The tick-box scale, for the 28-44px marks: tally squares, done ticks,
+     calendar days, paid boxes. Two so neighbours in a row never rhyme. */
+  --radius-tick: 10px 5px 9px 4px / 4px 9px 5px 10px;
+  --radius-tick-b: 5px 10px 4px 9px / 9px 4px 10px 5px;
+
+  /* A ruled line: the slider track and the board's value axes. */
+  --radius-rule: 40px 8px 40px 10px / 10px 40px 8px 40px;
+
+  /* The slider grip — a bead of ink rather than a dot. */
+  --radius-bead: 72% 34% 60% 42% / 38% 66% 40% 62%;
+
+  /* One pass of a chisel tip per ink: heavy in the middle, dry at both ends,
+     with the drag marks the nib leaves along the way. Opaque, so the lettering
+     on top never depends on a blend mode. */
+  --swipe-yellow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='44' viewBox='0 0 240 44' preserveAspectRatio='none'%3E%3Cpath d='M3 12 C42 5 96 9 140 6 C182 3 214 9 237 6 C239 18 238 30 235 39 C196 42 150 35 104 39 C68 42 30 39 5 40 C2 32 2 20 3 12 Z' fill='%23ffe34d'/%3E%3Cg stroke='%23f0c92e' stroke-width='2.6' stroke-linecap='round'%3E%3Cpath d='M14 11 C62 8 132 12 216 8'/%3E%3Cpath d='M20 36 C74 39 148 33 222 36'/%3E%3C/g%3E%3C/svg%3E");
+  --swipe-pink: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='44' viewBox='0 0 240 44' preserveAspectRatio='none'%3E%3Cpath d='M3 12 C42 5 96 9 140 6 C182 3 214 9 237 6 C239 18 238 30 235 39 C196 42 150 35 104 39 C68 42 30 39 5 40 C2 32 2 20 3 12 Z' fill='%23ff6bae'/%3E%3Cg stroke='%23ef4f96' stroke-width='2.6' stroke-linecap='round'%3E%3Cpath d='M14 11 C62 8 132 12 216 8'/%3E%3Cpath d='M20 36 C74 39 148 33 222 36'/%3E%3C/g%3E%3C/svg%3E");
+  --swipe-teal: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='44' viewBox='0 0 240 44' preserveAspectRatio='none'%3E%3Cpath d='M3 12 C42 5 96 9 140 6 C182 3 214 9 237 6 C239 18 238 30 235 39 C196 42 150 35 104 39 C68 42 30 39 5 40 C2 32 2 20 3 12 Z' fill='%2300c7b7'/%3E%3Cg stroke='%2300a99b' stroke-width='2.6' stroke-linecap='round'%3E%3Cpath d='M14 11 C62 8 132 12 216 8'/%3E%3Cpath d='M20 36 C74 39 148 33 222 36'/%3E%3C/g%3E%3C/svg%3E");
+
+  --stroke: 2.5px;
+  --paper-fiber: 0.16;
+
+  /**
+   * The drawn rectangles. Each is four separate strokes that overshoot their
+   * corners, the way a hand draws a box without lifting to measure. Stroke
+   * width is in viewBox units: the 26-unit slice renders into an 11px border,
+   * so 6.5 units lands at roughly a 2.7px line.
+   *
+   * The explicit width/height are load-bearing. An SVG data URI carrying only a
+   * viewBox has no intrinsic size, so `border-image-slice` measures it against
+   * the default 300x150 object size and the corners tear off the edges.
+   *
+   * `-ink-a` and `-ink-b` stay black in both renditions, for anything filled
+   * with a highlighter colour: a yellow button carries black lettering and a
+   * black outline whether the page around it is cream or photocopied black.
+   */
+  --box-ink-a: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%23111111' stroke-width='6.5' stroke-linecap='round'%3E%3Cpath d='M6 13 C30 9 60 16 90 11 C104 9 112 13 116 11'/%3E%3Cpath d='M107 6 C111 30 104 60 110 90 C112 104 108 112 109 116'/%3E%3Cpath d='M114 107 C90 111 60 104 30 110 C16 112 8 108 4 109'/%3E%3Cpath d='M13 114 C9 90 16 60 11 30 C9 16 13 8 11 4'/%3E%3C/g%3E%3C/svg%3E");
+  --box-ink-b: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%23111111' stroke-width='6.5' stroke-linecap='round'%3E%3Cpath d='M4 11 C28 16 58 8 88 14 C102 16 112 10 117 13'/%3E%3Cpath d='M109 4 C105 28 112 58 106 88 C104 102 110 112 108 117'/%3E%3Cpath d='M116 109 C92 105 62 112 32 106 C18 104 8 110 5 107'/%3E%3Cpath d='M11 116 C15 92 8 62 14 32 C16 18 10 8 13 5'/%3E%3C/g%3E%3C/svg%3E");
+  --box-a: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%23111111' stroke-width='6.5' stroke-linecap='round'%3E%3Cpath d='M6 13 C30 9 60 16 90 11 C104 9 112 13 116 11'/%3E%3Cpath d='M107 6 C111 30 104 60 110 90 C112 104 108 112 109 116'/%3E%3Cpath d='M114 107 C90 111 60 104 30 110 C16 112 8 108 4 109'/%3E%3Cpath d='M13 114 C9 90 16 60 11 30 C9 16 13 8 11 4'/%3E%3C/g%3E%3C/svg%3E");
+  --box-b: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%23111111' stroke-width='6.5' stroke-linecap='round'%3E%3Cpath d='M4 11 C28 16 58 8 88 14 C102 16 112 10 117 13'/%3E%3Cpath d='M109 4 C105 28 112 58 106 88 C104 102 110 112 108 117'/%3E%3Cpath d='M116 109 C92 105 62 112 32 106 C18 104 8 110 5 107'/%3E%3Cpath d='M11 116 C15 92 8 62 14 32 C16 18 10 8 13 5'/%3E%3C/g%3E%3C/svg%3E");
+  --box-c: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%23111111' stroke-width='6.5' stroke-linecap='round'%3E%3Cpath d='M7 14 C34 10 54 15 84 12 C100 10 110 15 115 12'/%3E%3Cpath d='M106 7 C112 34 103 54 108 84 C110 100 105 110 108 115'/%3E%3Cpath d='M113 106 C86 110 66 103 36 108 C20 110 10 105 5 108'/%3E%3Cpath d='M14 113 C8 86 17 66 12 36 C10 20 15 10 12 5'/%3E%3C/g%3E%3C/svg%3E");
+  --box-d: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%23111111' stroke-width='6.5' stroke-linecap='round'%3E%3Cpath d='M5 12 C26 17 62 9 86 15 C100 18 114 11 116 14'/%3E%3Cpath d='M108 5 C103 26 111 62 105 86 C102 100 109 114 106 116'/%3E%3Cpath d='M115 108 C94 103 58 111 34 105 C20 102 6 109 4 106'/%3E%3Cpath d='M12 115 C17 94 9 58 15 34 C18 20 11 6 14 4'/%3E%3C/g%3E%3C/svg%3E");
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-sunk: var(--surface-sunk);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-line: var(--line);
+  --color-primary: var(--primary);
+  --color-primary-ink: var(--primary-ink);
+  --color-primary-soft: var(--primary-soft);
+  --color-danger: var(--danger);
+  --color-hl-yellow: var(--hl-yellow);
+  --color-hl-pink: var(--hl-pink);
+  --color-hl-teal: var(--hl-teal);
+  --color-ink-pink: var(--ink-pink);
+  --color-ink-teal: var(--ink-teal);
+  /* No `rounded-card` utility on purpose. Containers in this world are drawn
+     boxes (`.drawn`), and leaving a card radius in the theme only invites the
+     rounded rectangles the world exists to refuse. The `--radius-*` values
+     below it stay for small controls — swatches, day cells, tick boxes — where
+     a full drawn border would swamp a 44px target. */
+  --font-marker: Arial, "Helvetica Neue", Helvetica, sans-serif;
+  --font-sans: Arial, "Helvetica Neue", Helvetica, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* --------------------------------------------------------------- paper --- */
+
+body {
+  background-color: var(--bg);
+  color: var(--ink);
+  font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
+  font-weight: 400;
+  position: relative;
+}
+
+/**
+ * Paper fibre. Generated rather than shipped as an image so it costs nothing
+ * and stays crisp at any density. Fixed to the viewport so scrolling doesn't
+ * drag the grain around — paper does not move under the ink.
+ */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: var(--paper-fiber);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.62' numOctaves='5' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23f)'/%3E%3C/svg%3E");
+}
+
+body > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ------------------------------------------------------------ lettering -- */
+
+.marker {
+  font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.06;
+  text-wrap: balance;
+}
+
+.marker-caps {
+  font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.015em;
+  line-height: 1.08;
+  text-wrap: balance;
+}
+
+/* --------------------------------------------------------- marker boxes -- */
+
+/**
+ * The one container in this design: a rectangle drawn by hand.
+ *
+ * Corner-radius tricks were tried first and rejected — they bend the corners
+ * but leave four perfectly straight edges, which still reads as a rounded
+ * rectangle. What makes a line look drawn is tremor along its whole length, so
+ * the border is an actual stroked SVG path used as a `border-image`. The
+ * corners are 9-slice fixed (they keep their overshoot, where a real pen runs
+ * past the turn) and the edges stretch, giving one continuous unrepeated wobble
+ * at any box size.
+ *
+ * `border-image` can't read `currentColor`, so the ink is baked into the data
+ * URI and swapped per rendition.
+ *
+ * Variants -b / -c / -d are separate drawings. Apply them down a stack so no
+ * two adjacent boxes are the same rectangle traced twice.
+ */
+.drawn,
+.drawn-b,
+.drawn-c,
+.drawn-d {
+  border: 11px solid transparent;
+  border-image-slice: 26;
+  border-image-width: 11px;
+  border-image-repeat: stretch;
+  border-image-source: var(--box-a);
+  background: var(--surface);
+  background-clip: padding-box;
+}
+
+.drawn-b { border-image-source: var(--box-b); }
+.drawn-c { border-image-source: var(--box-c); }
+.drawn-d { border-image-source: var(--box-d); }
+
+/**
+ * The filled-in box: primary actions and anything the marker has coloured in.
+ *
+ * `background-clip: border-box` is the whole trick. The fill runs out under the
+ * drawn stroke instead of stopping neatly at it, so the colour reads as having
+ * been laid down past the line — which is what colouring something in actually
+ * looks like. A fill that stops exactly at the border is a UI button wearing a
+ * costume.
+ */
+.filled {
+  border: 11px solid transparent;
+  border-image-slice: 26;
+  border-image-width: 11px;
+  border-image-repeat: stretch;
+  border-image-source: var(--box-ink-a);
+  background: var(--primary);
+  background-clip: border-box;
+  color: var(--primary-ink);
+}
+.filled-b {
+  border: 11px solid transparent;
+  border-image-slice: 26;
+  border-image-width: 11px;
+  border-image-repeat: stretch;
+  border-image-source: var(--box-ink-b);
+  background: var(--primary);
+  background-clip: border-box;
+  color: var(--primary-ink);
+}
+
+/**
+ * A disabled action is a box nobody has coloured in yet — not the same box at
+ * 45% opacity. Fading the fill dragged the yellow toward olive on the
+ * photocopied rendition and made the page's only CTA look broken rather than
+ * waiting, which is the opposite of what a disabled control should say.
+ */
+.filled:disabled,
+.filled-b:disabled {
+  background: transparent;
+  color: var(--ink-soft);
+  border-image-source: var(--box-b);
+  opacity: 1;
+  cursor: not-allowed;
+}
+
+/**
+ * A printed plate: the block of white stock an illustration is printed on and
+ * pasted into the page.
+ *
+ * Deliberately paper-coloured in BOTH renditions. The drawings are black-line
+ * artwork, and a black line on the photocopied-black page is no line at all.
+ * Zines solve this the same way — the picture gets its own white block — so
+ * the artwork can stay one drawing instead of needing a second negative
+ * version maintained alongside it.
+ */
+.plate,
+.plate-b {
+  /* Paper stock, not white. A ~90vw sheet of #fff is a torch in the hand on
+     the evening-phone scene this is designed for, and the world promises a
+     photocopy, which is never brighter than the stock it was printed on. */
+  background: #fff8ec;
+  color: #111111;
+  border: 11px solid transparent;
+  border-image-slice: 26;
+  border-image-width: 11px;
+  border-image-repeat: stretch;
+  border-image-source: var(--box-ink-a);
+  background-clip: padding-box;
+}
+.plate-b { border-image-source: var(--box-ink-b); }
+
+/* The plate is stock too: it takes the same grain as the page it is pasted on,
+   at its own light-mode strength regardless of the rendition. */
+.plate::before,
+.plate-b::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.17;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.62' numOctaves='5' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23f)'/%3E%3C/svg%3E");
+}
+.plate,
+.plate-b {
+  position: relative;
+}
+
+/* --------------------------------------------------------- highlighter --- */
+
+/**
+ * A swipe of highlighter laid down over the ink.
+ *
+ * Painted as the element's own background rather than an absolutely positioned
+ * pseudo-element. That is load-bearing, not a preference: `.hl` marks a run of
+ * words inside a sentence, and when that run wraps across two lines an absolute
+ * box is sized from the first fragment only — which left the landing page's
+ * thesis sentence with its swipe replaced by a stray pink sliver. A background
+ * with `box-decoration-break: clone` is painted onto every fragment, so the
+ * swipe survives any wrap at any width.
+ *
+ * The colour is baked into each SVG rather than masked, so the text sits on an
+ * opaque swipe and needs no blend mode to stay legible. Black lettering clears
+ * 4.5:1 on all three inks.
+ */
+.hl {
+  --swipe-img: var(--swipe-yellow);
+  background-image: var(--swipe-img);
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  background-position: center;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  padding: 0.02em 0.16em 0.06em;
+  color: #111111;
+}
+.hl-pink { --swipe-img: var(--swipe-pink); }
+.hl-teal { --swipe-img: var(--swipe-teal); }
+
+/* --------------------------------------------------------------- rules --- */
+
+/**
+ * A ruled line drawn by hand — the divider under a heading. Not a border:
+ * borders are straight, and nothing here is.
+ */
+.rule {
+  height: 7px;
+  border: 0;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 7' preserveAspectRatio='none'%3E%3Cpath d='M2 4.4 C 60 1.6, 96 5.6, 150 3.2 S 244 1.4, 298 3.6' fill='none' stroke='%23111' stroke-width='2.6' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+/* --------------------------------------------------------------- focus --- */
+
+/* One visible focus treatment everywhere, high contrast in both renditions. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Skip link — visible only once focused. */
+.skip-link {
+  position: absolute;
+  left: 8px;
+  top: -60px;
+  z-index: 100;
+  background: var(--primary);
+  color: var(--primary-ink);
+  padding: 12px 18px;
+  border: var(--stroke) solid var(--ink);
+  border-radius: var(--radius-b);
+  font-weight: 700;
+  transition: top 0.15s ease;
+}
+.skip-link:focus {
+  top: 8px;
+}
+
+/* -------------------------------------------------------------- inputs --- */
+
+/**
+ * Fields are drawn boxes you write inside, which is what a form on paper is.
+ */
+.field {
+  border: 11px solid transparent;
+  border-image-slice: 26;
+  border-image-width: 11px;
+  border-image-repeat: stretch;
+  border-image-source: var(--box-b);
+  background: var(--surface);
+  background-clip: padding-box;
+  color: var(--ink);
+}
+.field::placeholder {
+  color: var(--ink-soft);
+  opacity: 1;
+}
+textarea.field {
+  border-image-source: var(--box-d);
+}
+
+/**
+ * Native date and time inputs.
+ *
+ * The OS picker glyph and the grey `dd/mm/yyyy` mask are the last pieces of
+ * somebody else's design language in the app, and they sat inside a drawn box
+ * on the one screen a tired host uses. The control stays native — it is the
+ * right control, and its picker is better than anything worth hand-rolling at
+ * 3am — but its chrome is brought into the hand.
+ */
+input.field[type="date"],
+input.field[type="time"] {
+  font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
+  font-weight: 700;
+  font-size: 1.25rem;
+  letter-spacing: 0.02em;
+}
+input.field[type="date"]::-webkit-calendar-picker-indicator,
+input.field[type="time"]::-webkit-calendar-picker-indicator {
+  /* The world's own drawn calendar mark, in place of the platform glyph. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23111' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4.2 6.6 C 8 6.1, 16 6.2, 19.8 6.5 C 20.1 10.5, 20 16.4, 19.6 19.6 C 15 20.1, 8.4 20, 4.4 19.5 C 4 16, 4 10, 4.2 6.6 Z'/%3E%3Cpath d='M4.4 10.2 C 9 9.8, 15.6 9.9, 19.7 10.1'/%3E%3Cpath d='M8.4 6.4 L 8.2 3.4'/%3E%3Cpath d='M15.7 6.4 L 15.9 3.4'/%3E%3C/svg%3E");
+  background-size: 22px 22px;
+  background-repeat: no-repeat;
+  opacity: 1;
+  cursor: pointer;
+  width: 26px;
+  height: 26px;
+  padding: 2px;
+}
+input.field[type="date"]::-webkit-datetime-edit,
+input.field[type="time"]::-webkit-datetime-edit {
+  color: var(--ink);
+}
+/* The unfilled mask reads as help text, not as a value. */
+input.field[type="date"]:invalid::-webkit-datetime-edit,
+input.field[type="time"]:invalid::-webkit-datetime-edit {
+  color: var(--ink-soft);
+}
+
+/* -------------------------------------------------------------- slider --- */
+
+/**
+ * Range inputs.
+ *
+ * These are the primary control on four of the six toys, so the thumb is
+ * deliberately oversized — 34px, well past the 24px minimum target size — and
+ * the track is tall enough to hit without precision. Somebody with a tremor
+ * should be able to use this on a phone.
+ *
+ * In this world the thumb is a drawn bead of ink and the track is a ruled
+ * line, so the control belongs to the drawing rather than sitting on top of it.
+ */
+input[type="range"].toy-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 40px;
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type="range"].toy-slider::-webkit-slider-runnable-track {
+  height: 14px;
+  border-radius: var(--radius-rule);
+  background: var(--track);
+  border: 2px solid var(--line);
+}
+
+input[type="range"].toy-slider::-moz-range-track {
+  height: 14px;
+  border-radius: var(--radius-rule);
+  background: var(--track);
+  border: 2px solid var(--line);
+}
+
+input[type="range"].toy-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 34px;
+  height: 34px;
+  margin-top: -12px;
+  /* A bead of ink, not a dot: the corners are pulled unevenly so the grip
+     reads as drawn at the one size it is ever seen. */
+  border-radius: var(--radius-bead);
+  background: var(--hl-yellow);
+  border: 2.5px solid var(--ink);
+  transform: rotate(-6deg);
+}
+
+input[type="range"].toy-slider::-moz-range-thumb {
+  width: 34px;
+  height: 34px;
+  border: 2.5px solid var(--ink);
+  border-radius: var(--radius-bead);
+  background: var(--hl-yellow);
+  transform: rotate(-6deg);
+}
+
+input[type="range"].toy-slider:focus-visible::-webkit-slider-thumb {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+input[type="range"].toy-slider:focus-visible::-moz-range-thumb {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* -------------------------------------------------------------- motion --- */
+
+/**
+ * The one authored moment in the app: ink arriving on the page.
+ *
+ * Used on the board reveal and the results, where something genuinely appears
+ * for the first time. Not on navigation, and never on six things at once with
+ * the same timing.
+ */
+@keyframes ink-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) rotate(-0.6deg);
+    filter: blur(3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: blur(0);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+.ink-in {
+  animation: ink-in 620ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* A drawn stroke that draws itself. */
+@keyframes draw-on {
+  from { stroke-dashoffset: var(--len, 400); }
+  to { stroke-dashoffset: 0; }
+}
+
+.draw-on {
+  stroke-dasharray: var(--len, 400);
+  animation: draw-on 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The baby still morphs — that is content. The flourishes stop. */
+  .ink-in,
+  .draw-on {
+    animation: none;
+  }
+  .draw-on {
+    stroke-dasharray: none;
+  }
+  * {
+    transition-duration: 0.01ms !important;
+  }
 }
