@@ -1,6 +1,9 @@
 import "server-only";
 
-const ITERATIONS = 210_000;
+// Cloudflare Workers supports PBKDF2 up to 100,000 iterations. PIN security is
+// reinforced by the app's five-attempt lockout; using the runtime maximum keeps
+// hashing portable between local development and ChatGPT Sites production.
+const ITERATIONS = 100_000;
 const KEY_BYTES = 32;
 
 function encode(bytes: Uint8Array): string {
