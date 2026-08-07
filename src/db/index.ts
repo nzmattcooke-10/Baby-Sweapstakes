@@ -36,11 +36,12 @@ function getD1(): D1Database {
   return env.DB;
 }
 
-let schemaReady: Promise<void> | undefined;
+let schemaReady = false;
 
-function ensureSchema(): Promise<void> {
-  schemaReady ??= getD1()
-    .batch([
+async function ensureSchema(): Promise<void> {
+  if (schemaReady) return;
+
+  await getD1().batch([
       getD1().prepare(`CREATE TABLE IF NOT EXISTS sweepstake (
         id TEXT PRIMARY KEY NOT NULL,
         name TEXT NOT NULL,
@@ -106,9 +107,8 @@ function ensureSchema(): Promise<void> {
         value TEXT NOT NULL,
         created_at INTEGER NOT NULL
       )`),
-    ])
-    .then(() => undefined);
-  return schemaReady!;
+  ]);
+  schemaReady = true;
 }
 
 type SweepstakeRow = {

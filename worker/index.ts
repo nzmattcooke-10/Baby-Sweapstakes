@@ -45,7 +45,14 @@ const worker = {
         allowedWidths,
       );
     }
-    return handler.fetch(request, env, ctx);
+    try {
+      return await handler.fetch(request, env, ctx);
+    } catch (error) {
+      // Keep the public response generic, but retain the real exception in the
+      // private Sites Worker logs so production-only failures are actionable.
+      console.error("Unhandled application request", error);
+      throw error;
+    }
   },
 };
 
