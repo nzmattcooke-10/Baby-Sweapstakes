@@ -59,6 +59,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           Skip to main content
         </a>
         {children}
+        {/* Deploy marker: bump this string to confirm a redeploy actually
+            landed. It's the quickest way to tell the live build apart from the
+            previous one when the visible changes are subtle. */}
+        <footer className="pb-6 text-center text-xs text-ink-soft">v2.0</footer>
       </body>
     </html>
   );
