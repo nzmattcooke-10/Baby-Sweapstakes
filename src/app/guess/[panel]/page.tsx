@@ -18,7 +18,9 @@ function isPanel(value: string): value is PanelKey {
   return (PANELS as readonly string[]).includes(value);
 }
 
-export default async function PanelPage(props: PageProps<"/guess/[panel]">) {
+export default async function PanelPage(props: {
+  params: Promise<{ panel: string }>;
+}) {
   const { panel } = await props.params;
   if (!isPanel(panel)) notFound();
 

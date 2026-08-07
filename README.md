@@ -10,17 +10,11 @@ Due date: **15 August 2026**. Guessing window: 7–29 August.
 
 ## Run it locally
 
-The deployed app uses Cloud Firestore. For local development, run the Firebase
-Firestore emulator in one terminal:
+The deployed app uses the D1 database supplied by ChatGPT Sites. Local
+development uses a separate local D1 database automatically:
 
 ```bash
 npm install
-npx firebase-tools emulators:start --only firestore
-```
-
-Copy `.env.example` to `.env.local`, then run the app in another terminal:
-
-```bash
 npm run dev
 ```
 
@@ -47,22 +41,18 @@ adjust how it looks.
 
 ## Deploying
 
-The app uses **Firebase App Hosting** and **Cloud Firestore**, with no connection
-strings or database migration commands.
+The app is configured for **ChatGPT Sites** in `.openai/hosting.json`. Sites
+builds the Worker, applies the D1 migrations in `drizzle/`, and hosts the app.
 
-1. Create a Firebase project and enable Firestore in production mode.
-2. Upgrade the project to Blaze, which Firebase currently requires for App
-   Hosting.
-3. In **App Hosting**, create a backend and connect the GitHub repository
-   `nzmattcooke-10/Lewbner`, branch `main`, root directory `/`.
-4. Deploy. Firebase supplies the server credentials automatically. The first
-   request creates a new empty game and a private random session secret.
-5. Open `/admin`, sign in with `2468`, and change the host PIN immediately.
-6. Confirm the due date and buy-in, then send the family the link.
+After the first private deployment:
 
-Firestore rules deny every direct browser read and write. The Next.js server is
-the only component allowed to access game data, preserving the locked-board and
-hidden-name rules.
+1. Open `/admin` and sign in with the temporary host PIN `2468`.
+2. Change the host PIN immediately.
+3. Confirm the due date and buy-in.
+4. Make the Site public and share the link with the family.
+
+All game data is read and written on the server. D1 is never exposed directly
+to the browser, preserving the locked-board and hidden-name rules.
 
 ---
 

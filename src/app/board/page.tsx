@@ -8,7 +8,9 @@ import { getBoardView } from "@/lib/board-access";
 import { getWindow, requireUser } from "@/lib/data";
 import { daysBetween, formatLongDate, todayISO } from "@/lib/window";
 
-export default async function BoardPage(props: PageProps<"/board">) {
+export default async function BoardPage(props: {
+  searchParams: Promise<{ justCommitted?: string | string[] }>;
+}) {
   const { justCommitted } = await props.searchParams;
   const { participant, sweepstake } = await requireUser();
 
