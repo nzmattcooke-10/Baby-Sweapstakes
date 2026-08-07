@@ -41,7 +41,8 @@ let schemaReady = false;
 async function ensureSchema(): Promise<void> {
   if (schemaReady) return;
 
-  await getD1().batch([
+  try {
+    await getD1().batch([
       getD1().prepare(`CREATE TABLE IF NOT EXISTS sweepstake (
         id TEXT PRIMARY KEY NOT NULL,
         name TEXT NOT NULL,
@@ -107,8 +108,12 @@ async function ensureSchema(): Promise<void> {
         value TEXT NOT NULL,
         created_at INTEGER NOT NULL
       )`),
-  ]);
-  schemaReady = true;
+    ]);
+    schemaReady = true;
+  } catch (error) {
+    console.error("D1 schema initialization failed", error);
+    throw error;
+  }
 }
 
 type SweepstakeRow = {
@@ -250,32 +255,33 @@ function toResult(row: ResultRow): Result {
 }
 
 export async function ensureSweepstake(): Promise<Sweepstake> {
-  await ensureSchema();
-  const existing = await getD1()
-    .prepare("SELECT * FROM sweepstake WHERE id = ?")
-    .bind(GAME_ID)
-    .first<SweepstakeRow>();
-  if (existing) return toSweepstake(existing);
+  try {
+    await ensureSchema();
+    const existing = await getD1()
+      .prepare("SELECT * FROM sweepstake WHERE id = ?")
+      .bind(GAME_ID)
+      .first<SweepstakeRow>();
+    if (existing) return toSweepstake(existing);
 
-  const now = Date.now();
-  const today = todayISO();
-  const initial = {
-    name: "Guess the Lewbner Baby",
-    joinCode: "baby",
-    adminPinHash: await hashPin(DEFAULT_ADMIN_PIN),
-    dueDate: DUE_DATE,
-    calendarStart: today < DUE_DATE ? today : DUE_DATE,
-    calendarEnd: addDays(DUE_DATE, 14),
-  };
+    const now = Date.now();
+    const today = todayISO();
+    const initial = {
+      name: "Guess the Lewbner Baby",
+      joinCode: "baby",
+      adminPinHash: await hashPin(DEFAULT_ADMIN_PIN),
+      dueDate: DUE_DATE,
+      calendarStart: today < DUE_DATE ? today : DUE_DATE,
+      calendarEnd: addDays(DUE_DATE, 14),
+    };
 
-  await getD1().batch([
-    getD1()
-      .prepare(`INSERT OR IGNORE INTO sweepstake (
+    await getD1().batch([
+      getD1()
+        .prepare(`INSERT OR IGNORE INTO sweepstake (
         id, name, join_code, admin_pin_hash, due_date, calendar_start,
         calendar_end, buy_in_cents, currency, default_units, status,
         names_released_at, scoring_weights, created_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind(
+        .bind(
         GAME_ID,
         initial.name,
         initial.joinCode,
@@ -290,21 +296,25 @@ export async function ensureSweepstake(): Promise<Sweepstake> {
         null,
         JSON.stringify(DEFAULT_SCORING_WEIGHTS),
         now,
-      ),
-    getD1()
-      .prepare(`INSERT OR IGNORE INTO result (
+        ),
+      getD1()
+        .prepare(`INSERT OR IGNORE INTO result (
         sweepstake_id, actual_date, actual_minute_of_day, actual_weight_grams,
         actual_length_mm, actual_sex, actual_name, announced_at
       ) VALUES (?, NULL, NULL, NULL, NULL, NULL, NULL, NULL)`)
-      .bind(GAME_ID),
-  ]);
+        .bind(GAME_ID),
+    ]);
 
-  const created = await getD1()
-    .prepare("SELECT * FROM sweepstake WHERE id = ?")
-    .bind(GAME_ID)
-    .first<SweepstakeRow>();
-  if (!created) throw new Error("Could not initialise the sweepstake.");
-  return toSweepstake(created);
+    const created = await getD1()
+      .prepare("SELECT * FROM sweepstake WHERE id = ?")
+      .bind(GAME_ID)
+      .first<SweepstakeRow>();
+    if (!created) throw new Error("Could not initialise the sweepstake.");
+    return toSweepstake(created);
+  } catch (error) {
+    console.error("D1 sweepstake initialization failed", error);
+    throw error;
+  }
 }
 
 export function readSweepstake(): Promise<Sweepstake> {
