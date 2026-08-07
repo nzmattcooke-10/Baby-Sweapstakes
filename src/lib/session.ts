@@ -1,5 +1,6 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
+import { getSessionSigningSecret } from "@/db";
 
 /**
  * Sessions are signed JWTs in httpOnly cookies. The participant id never
@@ -13,22 +14,12 @@ const PARTICIPANT_COOKIE = "bsw_session";
 const ADMIN_COOKIE = "bsw_admin";
 const MAX_AGE_SECONDS = 60 * 60 * 24 * 90; // The sweepstake runs for weeks.
 
-function secret(): Uint8Array {
-  const value = process.env.SESSION_SECRET;
-  if (!value) {
-    throw new Error(
-      "SESSION_SECRET is not set. Generate one with `openssl rand -base64 32` and add it to .env.local.",
-    );
-  }
-  return new TextEncoder().encode(value);
-}
-
 async function sign(payload: Record<string, string>): Promise<string> {
   return new SignJWT(payload)
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(`${MAX_AGE_SECONDS}s`)
-    .sign(secret());
+    .sign(await getSessionSigningSecret());
 }
 
 function cookieOptions() {
@@ -55,7 +46,7 @@ export async function getSession(): Promise<Session | null> {
   if (!token) return null;
 
   try {
-    const { payload } = await jwtVerify(token, secret());
+    const { payload } = await jwtVerify(token, await getSessionSigningSecret());
     if (
       typeof payload.participantId !== "string" ||
       typeof payload.sweepstakeId !== "string"
@@ -88,7 +79,7 @@ export async function getAdminSession(): Promise<string | null> {
   if (!token) return null;
 
   try {
-    const { payload } = await jwtVerify(token, secret());
+    const { payload } = await jwtVerify(token, await getSessionSigningSecret());
     return typeof payload.sweepstakeId === "string" ? payload.sweepstakeId : null;
   } catch {
     return null;

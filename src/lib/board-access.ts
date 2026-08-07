@@ -1,12 +1,7 @@
 import "server-only";
 
-import { eq } from "drizzle-orm";
-import { getDb } from "@/db";
-import {
-  guess as guessTable,
-  participant as participantTable,
-  type Sweepstake,
-} from "@/db/schema";
+import { listParticipantGuesses } from "@/db";
+import type { Sweepstake } from "@/db/schema";
 
 /**
  * The single place the visibility rules are enforced.
@@ -63,25 +58,19 @@ export async function getBoardView(
   sweepstake: Sweepstake,
   viewerHasCommitted: boolean,
 ): Promise<BoardView> {
-  const db = await getDb();
-
-  const rows = await db
-    .select({
-      participantId: participantTable.id,
-      displayName: participantTable.displayName,
-      avatarKey: participantTable.avatarKey,
-      accentColor: participantTable.accentColor,
-      committedAt: participantTable.committedAt,
-      birthDate: guessTable.birthDate,
-      birthMinuteOfDay: guessTable.birthMinuteOfDay,
-      weightGrams: guessTable.weightGrams,
-      lengthMm: guessTable.lengthMm,
-      sex: guessTable.sex,
-      firstName: guessTable.firstName,
-    })
-    .from(participantTable)
-    .leftJoin(guessTable, eq(guessTable.participantId, participantTable.id))
-    .where(eq(participantTable.sweepstakeId, sweepstake.id));
+  const rows = (await listParticipantGuesses()).map(({ participant, guess }) => ({
+    participantId: participant.id,
+    displayName: participant.displayName,
+    avatarKey: participant.avatarKey,
+    accentColor: participant.accentColor,
+    committedAt: participant.committedAt,
+    birthDate: guess.birthDate,
+    birthMinuteOfDay: guess.birthMinuteOfDay,
+    weightGrams: guess.weightGrams,
+    lengthMm: guess.lengthMm,
+    sex: guess.sex,
+    firstName: guess.firstName,
+  }));
 
   const committedRows = rows.filter((r) => r.committedAt !== null);
   const committed = committedRows.length;

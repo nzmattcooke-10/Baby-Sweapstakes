@@ -1,11 +1,5 @@
-import { eq } from "drizzle-orm";
 import Link from "next/link";
-import { getDb } from "@/db";
-import {
-  guess as guessTable,
-  nameCredit as nameCreditTable,
-  participant as participantTable,
-} from "@/db/schema";
+import { listParticipantGuesses } from "@/db";
 import { Avatar } from "@/components/avatars/Avatar";
 import { BabySvg } from "@/components/baby/BabySvg";
 import { Icon } from "@/components/zine/Icon";
@@ -68,29 +62,22 @@ export default async function ResultsPage() {
     );
   }
 
-  const db = await getDb();
-  const rows = await db
-    .select({
-      id: participantTable.id,
-      displayName: participantTable.displayName,
-      avatarKey: participantTable.avatarKey,
-      accentColor: participantTable.accentColor,
-      committedAt: participantTable.committedAt,
-      birthDate: guessTable.birthDate,
-      birthMinuteOfDay: guessTable.birthMinuteOfDay,
-      weightGrams: guessTable.weightGrams,
-      lengthMm: guessTable.lengthMm,
-      sex: guessTable.sex,
-      firstName: guessTable.firstName,
-      credit: nameCreditTable.awardedPoints,
-    })
-    .from(participantTable)
-    .leftJoin(guessTable, eq(guessTable.participantId, participantTable.id))
-    .leftJoin(
-      nameCreditTable,
-      eq(nameCreditTable.participantId, participantTable.id),
-    )
-    .where(eq(participantTable.sweepstakeId, sweepstake.id));
+  const rows = (await listParticipantGuesses()).map(
+    ({ participant: person, guess, credit }) => ({
+      id: person.id,
+      displayName: person.displayName,
+      avatarKey: person.avatarKey,
+      accentColor: person.accentColor,
+      committedAt: person.committedAt,
+      birthDate: guess.birthDate,
+      birthMinuteOfDay: guess.birthMinuteOfDay,
+      weightGrams: guess.weightGrams,
+      lengthMm: guess.lengthMm,
+      sex: guess.sex,
+      firstName: guess.firstName,
+      credit: credit?.awardedPoints ?? null,
+    }),
+  );
 
   // Anyone who never committed keeps their draft but scores nothing.
   const players = rows.filter((row) => row.committedAt !== null);

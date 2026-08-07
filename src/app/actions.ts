@@ -1,9 +1,14 @@
 "use server";
 
-import { and, eq, sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
-import { getDb } from "@/db";
-import { guess as guessTable, participant as participantTable } from "@/db/schema";
+import {
+  createParticipant,
+  EntriesClosedError,
+  findParticipantByName,
+  isNameTaken,
+  NameTakenError,
+  updateParticipant,
+} from "@/db";
 import { getSweepstake } from "@/lib/data";
 import {
   MAX_ATTEMPTS,
@@ -44,14 +49,9 @@ export async function checkName(rawName: string): Promise<NameCheck> {
     return { status: "invalid", error: "That name is a bit long — 30 characters max." };
   }
 
-  const db = await getDb();
-  const rows = await db
-    .select({ id: participantTable.id })
-    .from(participantTable)
-    .where(sql`lower(${participantTable.displayName}) = ${normalise(name)}`)
-    .limit(1);
-
-  return rows.length > 0 ? { status: "taken" } : { status: "available" };
+  return (await isNameTaken(normalise(name)))
+    ? { status: "taken" }
+    : { status: "available" };
 }
 
 export type AuthResult = { ok: false; error: string };
@@ -87,20 +87,31 @@ export async function register(
     };
   }
 
-  const db = await getDb();
-
-  const [created] = await db
-    .insert(participantTable)
-    .values({
-      sweepstakeId: sweepstake.id,
+  let created;
+  try {
+    created = await createParticipant({
       displayName: name,
+      displayNameNormalised: normalise(name),
       avatarKey,
       accentColor,
       pinHash: await hashPin(pin),
-    })
-    .returning();
-
-  await db.insert(guessTable).values({ participantId: created.id });
+    });
+  } catch (error) {
+    if (error instanceof NameTakenError) {
+      return {
+        ok: false,
+        error: `Somebody's already using "${name}". Sign in as them, or add a surname initial.`,
+      };
+    }
+    if (error instanceof EntriesClosedError) {
+      return {
+        ok: false,
+        error:
+          "Entries have closed — the baby's on the way! You've missed this one, sorry.",
+      };
+    }
+    throw error;
+  }
   await createSession({
     participantId: created.id,
     sweepstakeId: sweepstake.id,
@@ -113,19 +124,8 @@ export async function signIn(
   rawName: string,
   pin: string,
 ): Promise<AuthResult | never> {
-  const db = await getDb();
   const sweepstake = await getSweepstake();
-
-  const [person] = await db
-    .select()
-    .from(participantTable)
-    .where(
-      and(
-        eq(participantTable.sweepstakeId, sweepstake.id),
-        sql`lower(${participantTable.displayName}) = ${normalise(rawName)}`,
-      ),
-    )
-    .limit(1);
+  const person = await findParticipantByName(normalise(rawName));
 
   // Deliberately the same message whether the name is unknown or the PIN is
   // wrong, so this can't be used to enumerate who is playing.
@@ -137,10 +137,7 @@ export async function signIn(
   }
 
   if (await verifyPin(person.pinHash, pin)) {
-    await db
-      .update(participantTable)
-      .set({ pinAttempts: 0, lockedUntil: null })
-      .where(eq(participantTable.id, person.id));
+    await updateParticipant(person.id, { pinAttempts: 0, lockedUntil: null });
     await createSession({
       participantId: person.id,
       sweepstakeId: sweepstake.id,
@@ -151,13 +148,10 @@ export async function signIn(
   const attempts = person.pinAttempts + 1;
   const locked = attempts >= MAX_ATTEMPTS;
 
-  await db
-    .update(participantTable)
-    .set({
-      pinAttempts: locked ? 0 : attempts,
-      lockedUntil: locked ? lockoutExpiry() : null,
-    })
-    .where(eq(participantTable.id, person.id));
+  await updateParticipant(person.id, {
+    pinAttempts: locked ? 0 : attempts,
+    lockedUntil: locked ? lockoutExpiry() : null,
+  });
 
   if (locked) return { ok: false, error: lockoutMessage(lockoutExpiry()) };
   return { ok: false, error: attemptsRemainingMessage(attempts) };

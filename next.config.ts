@@ -2,12 +2,10 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /**
-   * Both of these ship native or WebAssembly assets that resolve their own
-   * files at runtime. Bundling them rewrites those paths and they break —
-   * PGlite fails to open its data directory, and Argon2 can't find its binding.
-   * Marking them external makes Next require() them from node_modules instead.
+   * Argon2 ships a native binding. Keeping it external lets Node load the
+   * correct binary in Firebase App Hosting's Cloud Run container.
    */
-  serverExternalPackages: ["@electric-sql/pglite", "@node-rs/argon2"],
+  serverExternalPackages: ["@node-rs/argon2"],
 
   /**
    * Pin the workspace root. Without this Turbopack walks up and finds an

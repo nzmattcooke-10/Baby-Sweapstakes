@@ -1,6 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
+// Every route reflects live Firestore state. Rendering happens in Firebase App
+// Hosting at request time, never during the credential-free build step.
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Guess the Lewbner Baby",
   description: "Guess the day, the weight and the name. No peeking until you've locked in.",

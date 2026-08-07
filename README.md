@@ -10,30 +10,25 @@ Due date: **15 August 2026**. Guessing window: 7–29 August.
 
 ## Run it locally
 
+The deployed app uses Cloud Firestore. For local development, run the Firebase
+Firestore emulator in one terminal:
+
 ```bash
 npm install
-npm run db:reset   # creates the local database and 8 demo relatives
+npx firebase-tools emulators:start --only firestore
+```
+
+Copy `.env.example` to `.env.local`, then run the app in another terminal:
+
+```bash
 npm run dev
 ```
 
 Open http://localhost:3000.
 
-No database account is needed to develop: with `DATABASE_URL` unset the app runs
-on **PGlite**, real Postgres compiled to WebAssembly, stored in `.pglite/`.
-
-The demo data gives you:
-
-| Who | PIN | State |
-|---|---|---|
-| Nana Joy, Grandad Rob, Aunty Pip, Uncle Dave, Cousin Ell, Sam, Kiri, Tama | `1357` | committed |
-| Test Visitor | `8351` | **not** committed — use this to see the locked board |
-| Host tools (`/admin`) | `2468` | — |
-
-> **One PGlite gotcha.** It's single-process. Running `npm run build`,
-> `db:migrate` or `db:seed` *while `npm run dev` is running* aborts the live
-> instance, and every query afterwards fails with `RuntimeError: Aborted()`.
-> Stop the dev server first, or run `npm run db:reset` to start clean. This
-> doesn't apply in production, where Neon is a real server.
+The first request creates a fresh empty game automatically. The initial host PIN
+for `/admin` is `2468`; change it before sharing the link. No demo relatives are
+created.
 
 ## Scripts
 
@@ -43,9 +38,6 @@ The demo data gives you:
 | `npm test` | Unit tests for the scoring, units and calendar maths |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run build` | Production build |
-| `npm run db:reset` | Wipe and rebuild the local database with demo data |
-| `npm run db:generate` | New SQL migration after a schema change |
-| `npm run db:migrate` | Apply migrations (local or Neon) |
 
 `npx tsx scripts/preview-baby.tsx out.html` renders the baby illustration across
 the full range of both sliders to a standalone HTML file — handy if you want to
@@ -55,30 +47,22 @@ adjust how it looks.
 
 ## Deploying
 
-You'll need free **Neon** and **Vercel** accounts. Create these yourself — the
-credentials shouldn't pass through anyone else.
+The app uses **Firebase App Hosting** and **Cloud Firestore**, with no connection
+strings or database migration commands.
 
-1. **Neon** — sign up at https://console.neon.tech, create a project, and copy
-   the **pooled** connection string (its host contains `-pooler`).
-2. **Vercel** — import this repository, and set two environment variables:
-   - `DATABASE_URL` — the Neon string from step 1
-   - `SESSION_SECRET` — generate with `openssl rand -base64 32`
-3. Deploy, then from your machine, pointed at the same database, run:
-   ```bash
-   DATABASE_URL="<your neon string>" npm run db:migrate
-   DATABASE_URL="<your neon string>" npm run db:seed
-   ```
-   (`db:seed` without `--demo` creates the sweepstake only — no fake relatives.)
-4. Open `/admin`, sign in with the seeded PIN, and **change it immediately**.
-   Set the real due date and buy-in while you're there.
-5. Send the family the link.
+1. Create a Firebase project and enable Firestore in production mode.
+2. Upgrade the project to Blaze, which Firebase currently requires for App
+   Hosting.
+3. In **App Hosting**, create a backend and connect the GitHub repository
+   `nzmattcooke-10/Lewbner`, branch `main`, root directory `/`.
+4. Deploy. Firebase supplies the server credentials automatically. The first
+   request creates a new empty game and a private random session secret.
+5. Open `/admin`, sign in with `2468`, and change the host PIN immediately.
+6. Confirm the due date and buy-in, then send the family the link.
 
-### Why Neon rather than Supabase
-
-Supabase's free tier pauses a project after 7 days of inactivity and needs a
-manual restore. This app sits idle for weeks waiting for a baby, so a relative
-opening the link would find a dead site. Neon also suspends, but wakes on the
-next request with no intervention.
+Firestore rules deny every direct browser read and write. The Next.js server is
+the only component allowed to access game data, preserving the locked-board and
+hidden-name rules.
 
 ---
 

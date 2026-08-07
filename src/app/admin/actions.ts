@@ -1,14 +1,12 @@
 "use server";
 
-import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { getDb } from "@/db";
 import {
-  nameCredit as nameCreditTable,
-  participant as participantTable,
-  result as resultTable,
-  sweepstake as sweepstakeTable,
-} from "@/db/schema";
+  saveActualResult,
+  setNameCredit,
+  updateParticipant,
+  updateSweepstake,
+} from "@/db";
 import { getSweepstake } from "@/lib/data";
 import { PIN_PROBLEM_MESSAGE, validatePin } from "@/lib/pin";
 import { hashPin, verifyPin } from "@/lib/pin-hash";
@@ -51,23 +49,15 @@ export async function adminSignOut(): Promise<AdminResult> {
  * has to happen on the first try.
  */
 export async function closeEntries(): Promise<AdminResult> {
-  const sweepstakeId = await requireAdmin();
-  const db = await getDb();
-  await db
-    .update(sweepstakeTable)
-    .set({ status: "closed" })
-    .where(eq(sweepstakeTable.id, sweepstakeId));
+  await requireAdmin();
+  await updateSweepstake({ status: "closed" });
   revalidatePath("/", "layout");
   return { ok: true };
 }
 
 export async function reopenEntries(): Promise<AdminResult> {
-  const sweepstakeId = await requireAdmin();
-  const db = await getDb();
-  await db
-    .update(sweepstakeTable)
-    .set({ status: "open" })
-    .where(eq(sweepstakeTable.id, sweepstakeId));
+  await requireAdmin();
+  await updateSweepstake({ status: "open" });
   revalidatePath("/", "layout");
   return { ok: true };
 }
@@ -77,12 +67,8 @@ export async function reopenEntries(): Promise<AdminResult> {
  * name days later. Until this runs, name guesses are never sent to anyone.
  */
 export async function releaseNames(): Promise<AdminResult> {
-  const sweepstakeId = await requireAdmin();
-  const db = await getDb();
-  await db
-    .update(sweepstakeTable)
-    .set({ namesReleasedAt: new Date() })
-    .where(eq(sweepstakeTable.id, sweepstakeId));
+  await requireAdmin();
+  await updateSweepstake({ namesReleasedAt: new Date() });
   revalidatePath("/", "layout");
   return { ok: true };
 }
@@ -102,28 +88,8 @@ export type ResultInput = {
  * that, so the reveal starts on the day rather than waiting for a full set.
  */
 export async function saveResult(input: ResultInput): Promise<AdminResult> {
-  const sweepstakeId = await requireAdmin();
-  const db = await getDb();
-
-  const anythingKnown = Object.values(input).some((value) => value !== null);
-
-  await db
-    .update(resultTable)
-    .set({
-      ...input,
-      announcedAt: anythingKnown ? new Date() : null,
-    })
-    .where(eq(resultTable.sweepstakeId, sweepstakeId));
-
-  // Announcing the birth closes entries even if the host never pressed the
-  // button — which is the likely path, since nobody remembers admin panels
-  // during labour.
-  if (anythingKnown) {
-    await db
-      .update(sweepstakeTable)
-      .set({ status: "revealed" })
-      .where(eq(sweepstakeTable.id, sweepstakeId));
-  }
+  await requireAdmin();
+  await saveActualResult(input);
 
   revalidatePath("/", "layout");
   return { ok: true };
@@ -134,11 +100,7 @@ export async function setPaid(
   hasPaid: boolean,
 ): Promise<AdminResult> {
   await requireAdmin();
-  const db = await getDb();
-  await db
-    .update(participantTable)
-    .set({ hasPaid })
-    .where(eq(participantTable.id, participantId));
+  await updateParticipant(participantId, { hasPaid });
   revalidatePath("/admin");
   return { ok: true };
 }
@@ -156,15 +118,11 @@ export async function resetPin(
   const problem = validatePin(newPin);
   if (problem) return { ok: false, error: PIN_PROBLEM_MESSAGE[problem] };
 
-  const db = await getDb();
-  await db
-    .update(participantTable)
-    .set({
-      pinHash: await hashPin(newPin),
-      pinAttempts: 0,
-      lockedUntil: null,
-    })
-    .where(eq(participantTable.id, participantId));
+  await updateParticipant(participantId, {
+    pinHash: await hashPin(newPin),
+    pinAttempts: 0,
+    lockedUntil: null,
+  });
   revalidatePath("/admin");
   return { ok: true };
 }
@@ -178,21 +136,7 @@ export async function awardNameCredit(
   points: number,
 ): Promise<AdminResult> {
   await requireAdmin();
-  const db = await getDb();
-
-  if (points <= 0) {
-    await db
-      .delete(nameCreditTable)
-      .where(eq(nameCreditTable.participantId, participantId));
-  } else {
-    await db
-      .insert(nameCreditTable)
-      .values({ participantId, awardedPoints: points })
-      .onConflictDoUpdate({
-        target: nameCreditTable.participantId,
-        set: { awardedPoints: points },
-      });
-  }
+  await setNameCredit(participantId, points);
 
   revalidatePath("/results");
   return { ok: true };
@@ -204,7 +148,7 @@ export async function updateSettings(input: {
   buyInCents: number;
   currency: string;
 }): Promise<AdminResult> {
-  const sweepstakeId = await requireAdmin();
+  await requireAdmin();
 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(input.dueDate)) {
     return { ok: false, error: "That due date isn't a date." };
@@ -213,30 +157,22 @@ export async function updateSettings(input: {
     return { ok: false, error: "The window has to end after the due date." };
   }
 
-  const db = await getDb();
-  await db
-    .update(sweepstakeTable)
-    .set({
-      dueDate: input.dueDate,
-      calendarEnd: input.calendarEnd,
-      buyInCents: Math.max(0, Math.round(input.buyInCents)),
-      currency: input.currency,
-    })
-    .where(eq(sweepstakeTable.id, sweepstakeId));
+  await updateSweepstake({
+    dueDate: input.dueDate,
+    calendarEnd: input.calendarEnd,
+    buyInCents: Math.max(0, Math.round(input.buyInCents)),
+    currency: input.currency,
+  });
 
   revalidatePath("/", "layout");
   return { ok: true };
 }
 
 export async function changeAdminPin(newPin: string): Promise<AdminResult> {
-  const sweepstakeId = await requireAdmin();
+  await requireAdmin();
   const problem = validatePin(newPin);
   if (problem) return { ok: false, error: PIN_PROBLEM_MESSAGE[problem] };
 
-  const db = await getDb();
-  await db
-    .update(sweepstakeTable)
-    .set({ adminPinHash: await hashPin(newPin) })
-    .where(eq(sweepstakeTable.id, sweepstakeId));
+  await updateSweepstake({ adminPinHash: await hashPin(newPin) });
   return { ok: true };
 }

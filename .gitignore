@@ -38,6 +38,13 @@ yarn-error.log*
 /.pglite/
 /.pglite-*/
 
+# Firebase local state and service-account credentials
+/.firebase/
+/firebase-debug.log
+/firestore-debug.log
+/*service-account*.json
+/*serviceAccount*.json
+
 # local editor and AI-tool state
 /.claude/
 /.codex/

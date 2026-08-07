@@ -1,7 +1,5 @@
-import { asc, eq } from "drizzle-orm";
 import Link from "next/link";
-import { getDb } from "@/db";
-import { participant as participantTable } from "@/db/schema";
+import { listParticipants } from "@/db";
 import { AdminPanel } from "@/components/admin/AdminPanel";
 import { AdminSignIn } from "@/components/admin/AdminSignIn";
 import { getResult, getSweepstake } from "@/lib/data";
@@ -35,12 +33,7 @@ export default async function AdminPage() {
 async function HostView({ sweepstakeId }: { sweepstakeId: string }) {
   const sweepstake = await getSweepstake();
   const result = await getResult(sweepstakeId);
-  const db = await getDb();
-  const participants = await db
-    .select()
-    .from(participantTable)
-    .where(eq(participantTable.sweepstakeId, sweepstakeId))
-    .orderBy(asc(participantTable.createdAt));
+  const participants = await listParticipants();
 
   return (
     <AdminPanel

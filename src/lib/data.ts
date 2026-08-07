@@ -1,18 +1,19 @@
 import "server-only";
 
-import { eq } from "drizzle-orm";
 import type { IconName } from "@/components/zine/Icon";
 import { redirect } from "next/navigation";
-import { getDb } from "@/db";
 import {
-  guess as guessTable,
-  participant as participantTable,
-  result as resultTable,
-  sweepstake as sweepstakeTable,
-  type Guess,
-  type Participant,
-  type Result,
-  type Sweepstake,
+  listParticipants,
+  readGuess,
+  readParticipant,
+  readResult,
+  readSweepstake,
+} from "@/db";
+import type {
+  Guess,
+  Participant,
+  Result,
+  Sweepstake,
 } from "@/db/schema";
 import { getSession } from "./session";
 import { calendarWindow, type CalendarWindow } from "./window";
@@ -25,14 +26,7 @@ import { calendarWindow, type CalendarWindow } from "./window";
  */
 
 export async function getSweepstake(): Promise<Sweepstake> {
-  const db = await getDb();
-  const rows = await db.select().from(sweepstakeTable).limit(1);
-  if (rows.length === 0) {
-    throw new Error(
-      "No sweepstake found. Run `npm run db:migrate && npm run db:seed`.",
-    );
-  }
-  return rows[0];
+  return readSweepstake();
 }
 
 export async function getWindow(s: Sweepstake): Promise<CalendarWindow> {
@@ -50,31 +44,11 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   const session = await getSession();
   if (!session) return null;
 
-  const db = await getDb();
-  const [participant] = await db
-    .select()
-    .from(participantTable)
-    .where(eq(participantTable.id, session.participantId))
-    .limit(1);
-
+  const participant = await readParticipant(session.participantId);
   if (!participant) return null;
 
   const sweepstake = await getSweepstake();
-  const [existing] = await db
-    .select()
-    .from(guessTable)
-    .where(eq(guessTable.participantId, participant.id))
-    .limit(1);
-
-  // A participant always has a guess row; it just starts entirely empty.
-  const guess =
-    existing ??
-    (
-      await db
-        .insert(guessTable)
-        .values({ participantId: participant.id })
-        .returning()
-    )[0];
+  const guess = await readGuess(participant.id);
 
   return { participant, guess, sweepstake };
 }
@@ -86,24 +60,16 @@ export async function requireUser(): Promise<CurrentUser> {
 }
 
 export async function getResult(sweepstakeId: string): Promise<Result | null> {
-  const db = await getDb();
-  const [row] = await db
-    .select()
-    .from(resultTable)
-    .where(eq(resultTable.sweepstakeId, sweepstakeId))
-    .limit(1);
-  return row ?? null;
+  if (sweepstakeId !== (await getSweepstake()).id) return null;
+  return readResult();
 }
 
 export async function countCommitted(sweepstakeId: string): Promise<{
   committed: number;
   total: number;
 }> {
-  const db = await getDb();
-  const rows = await db
-    .select({ committedAt: participantTable.committedAt })
-    .from(participantTable)
-    .where(eq(participantTable.sweepstakeId, sweepstakeId));
+  const rows =
+    sweepstakeId === (await getSweepstake()).id ? await listParticipants() : [];
 
   return {
     committed: rows.filter((r) => r.committedAt !== null).length,

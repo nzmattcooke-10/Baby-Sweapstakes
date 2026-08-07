@@ -77,9 +77,8 @@ on bad reception. Accordingly:
 - Latecomers are turned away at registration, not after picking an avatar.
 
 The app sits idle for weeks waiting for a baby, then is used heavily over a few
-days. This idleness is why production targets **Neon** rather than Supabase:
-Supabase's free tier pauses after 7 days and needs a manual restore, so a
-relative opening the link would find a dead site; Neon wakes on the next request.
+days. Production uses **Cloud Firestore** through Firebase App Hosting, keeping
+the dynamic Next.js application and its data in one Firebase project.
 
 ## Capabilities and Constraints
 
@@ -107,15 +106,13 @@ host resets a forgotten PIN from `/admin`, which clears the lockout immediately.
 
 **Technical constraints**
 
-- Next.js 16 + React 19, Drizzle ORM, Tailwind v4, `jose` sessions, argon2 PIN
+- Next.js 16 + React 19, Cloud Firestore, Tailwind v4, `jose` sessions, argon2 PIN
   hashing. Locale is `en-NZ`.
 - This Next.js version has breaking changes from common training data; consult
   `node_modules/next/dist/docs/` before writing framework code (see `AGENTS.md`).
-- Local development runs on **PGlite** (Postgres compiled to WebAssembly, in
-  `.pglite/`) with `DATABASE_URL` unset. PGlite is **single-process**: running
-  `npm run build`, `db:migrate`, or `db:seed` while `npm run dev` is live aborts
-  the instance and every subsequent query fails with `RuntimeError: Aborted()`.
-  This does not apply in production.
+- Local development uses the Firebase Firestore emulator. Production uses
+  Application Default Credentials supplied by Firebase App Hosting, so no
+  database password or service-account file is committed.
 - The baby illustration is one parameterised SVG (`src/components/baby/`) driving
   every toy, under two rules: **the head never changes size** (weight goes to
   torso, cheeks, limbs; length to torso and legs — an inflating head reads as a
@@ -125,9 +122,9 @@ host resets a forgotten PIN from `/admin`, which clears the lockout immediately.
 
 **Open decisions — do not invent answers**
 
-- **Not yet deployed.** `DATABASE_URL` is unset locally, so no Neon database or
-  Vercel project has been wired up. Given the window opens today, this is the
-  live blocker.
+- **Ready for Firebase deployment.** Firestore and an App Hosting backend still
+  need to be created in the Firebase console. Given the window opens today,
+  this is the live blocker.
 - **Whether any players are overseas.** Not confirmed. It affects date, time, and
   currency handling; assume a single NZ timezone only until answered.
 - **Buy-in amount** beyond the NZD $10 default.

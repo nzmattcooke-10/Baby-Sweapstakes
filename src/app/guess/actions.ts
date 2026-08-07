@@ -1,15 +1,8 @@
 "use server";
 
-import { eq, and, isNull } from "drizzle-orm";
 import { redirect } from "next/navigation";
-import { getDb } from "@/db";
-import {
-  guess as guessTable,
-  participant as participantTable,
-  type Guess,
-  type Participant,
-  type Sweepstake,
-} from "@/db/schema";
+import { commitParticipant, updateDraftGuess } from "@/db";
+import type { Guess, GuessPatch, Participant, Sweepstake } from "@/db/schema";
 import { allPanelsDone, requireUser } from "@/lib/data";
 import { todayISO } from "@/lib/window";
 
@@ -49,31 +42,24 @@ async function editableGuess(): Promise<EditableContext> {
   return { ok: true, participant, guess, sweepstake };
 }
 
-type Patch = Partial<{
-  birthDate: string;
-  birthMinuteOfDay: number;
-  weightGrams: number;
-  lengthMm: number;
-  sex: "boy" | "girl";
-  firstName: string;
-}>;
-
-async function patchGuess(patch: Patch): Promise<ActionResult> {
+async function patchGuess(patch: GuessPatch): Promise<ActionResult> {
   const context = await editableGuess();
   if (!context.ok) return { ok: false, error: context.error };
 
-  const db = await getDb();
-  await db
-    .update(guessTable)
-    .set({ ...patch, updatedAt: new Date() })
-    .where(
-      // The isNull guard makes "already committed" atomic, rather than a read
-      // followed by a hopeful write.
-      and(
-        eq(guessTable.participantId, context.participant.id),
-        isNull(guessTable.committedAt),
-      ),
-    );
+  const result = await updateDraftGuess(context.participant.id, patch);
+  if (result === "closed") {
+    return {
+      ok: false,
+      error:
+        "Entries have closed — the baby's on the way! Your guesses are locked in as they are.",
+    };
+  }
+  if (result === "committed") {
+    return {
+      ok: false,
+      error: "You've already locked in your guesses, so they can't be changed now.",
+    };
+  }
 
   return { ok: true };
 }
@@ -142,28 +128,9 @@ export async function commitGuesses(): Promise<ActionResult> {
     return { ok: false, error: "There are still guesses to make." };
   }
 
-  const db = await getDb();
-  const now = new Date();
-
-  const updated = await db
-    .update(participantTable)
-    .set({ committedAt: now })
-    .where(
-      and(
-        eq(participantTable.id, context.participant.id),
-        isNull(participantTable.committedAt),
-      ),
-    )
-    .returning({ id: participantTable.id });
-
-  if (updated.length === 0) {
+  if (!(await commitParticipant(context.participant.id))) {
     return { ok: false, error: "Those guesses were already locked in." };
   }
-
-  await db
-    .update(guessTable)
-    .set({ committedAt: now })
-    .where(eq(guessTable.participantId, context.participant.id));
 
   redirect("/board?justCommitted=1");
 }
