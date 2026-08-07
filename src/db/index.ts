@@ -37,6 +37,7 @@ function getD1(): D1Database {
 }
 
 let schemaReady = false;
+let seedReady = false;
 
 async function ensureSchema(): Promise<void> {
   if (schemaReady) return;
@@ -254,14 +255,31 @@ function toResult(row: ResultRow): Result {
   };
 }
 
-export async function ensureSweepstake(): Promise<Sweepstake> {
+/**
+ * Guarantee the schema and the seed rows exist, and nothing more. Cached per
+ * isolate by `seedReady` the same way `ensureSchema` is cached by `schemaReady`,
+ * so after the first request in an isolate this costs zero D1 round-trips.
+ *
+ * Most callers only need this guarantee — they run their own query afterwards
+ * and never look at the sweepstake row. They call `ensureReady()` rather than
+ * `ensureSweepstake()` so they don't pay for a `SELECT * FROM sweepstake` they
+ * throw away. Only callers that actually use the row (status checks, the home
+ * page) read it via `ensureSweepstake()`.
+ */
+async function ensureReady(): Promise<void> {
+  if (seedReady) return;
+
   try {
     await ensureSchema();
+
     const existing = await getD1()
-      .prepare("SELECT * FROM sweepstake WHERE id = ?")
+      .prepare("SELECT id FROM sweepstake WHERE id = ?")
       .bind(GAME_ID)
-      .first<SweepstakeRow>();
-    if (existing) return toSweepstake(existing);
+      .first<{ id: string }>();
+    if (existing) {
+      seedReady = true;
+      return;
+    }
 
     const now = Date.now();
     const today = todayISO();
@@ -304,17 +322,21 @@ export async function ensureSweepstake(): Promise<Sweepstake> {
       ) VALUES (?, NULL, NULL, NULL, NULL, NULL, NULL, NULL)`)
         .bind(GAME_ID),
     ]);
-
-    const created = await getD1()
-      .prepare("SELECT * FROM sweepstake WHERE id = ?")
-      .bind(GAME_ID)
-      .first<SweepstakeRow>();
-    if (!created) throw new Error("Could not initialise the sweepstake.");
-    return toSweepstake(created);
+    seedReady = true;
   } catch (error) {
     console.error("D1 sweepstake initialization failed", error);
     throw error;
   }
+}
+
+export async function ensureSweepstake(): Promise<Sweepstake> {
+  await ensureReady();
+  const row = await getD1()
+    .prepare("SELECT * FROM sweepstake WHERE id = ?")
+    .bind(GAME_ID)
+    .first<SweepstakeRow>();
+  if (!row) throw new Error("Could not initialise the sweepstake.");
+  return toSweepstake(row);
 }
 
 export function readSweepstake(): Promise<Sweepstake> {
@@ -324,7 +346,7 @@ export function readSweepstake(): Promise<Sweepstake> {
 export async function findParticipantByName(
   normalisedName: string,
 ): Promise<Participant | null> {
-  await ensureSweepstake();
+  await ensureReady();
   const row = await getD1()
     .prepare(
       "SELECT * FROM participant WHERE sweepstake_id = ? AND display_name_normalised = ?",
@@ -389,7 +411,7 @@ export async function createParticipant(input: {
 }
 
 export async function readParticipant(id: string): Promise<Participant | null> {
-  await ensureSweepstake();
+  await ensureReady();
   const row = await getD1()
     .prepare("SELECT * FROM participant WHERE id = ?")
     .bind(id)
@@ -398,7 +420,7 @@ export async function readParticipant(id: string): Promise<Participant | null> {
 }
 
 export async function readGuess(participantId: string): Promise<Guess> {
-  await ensureSweepstake();
+  await ensureReady();
   let row = await getD1()
     .prepare("SELECT * FROM guess WHERE participant_id = ?")
     .bind(participantId)
@@ -421,7 +443,7 @@ export async function readGuess(participantId: string): Promise<Guess> {
 }
 
 export async function readResult(): Promise<Result | null> {
-  await ensureSweepstake();
+  await ensureReady();
   const row = await getD1()
     .prepare("SELECT * FROM result WHERE sweepstake_id = ?")
     .bind(GAME_ID)
@@ -430,7 +452,7 @@ export async function readResult(): Promise<Result | null> {
 }
 
 export async function listParticipants(): Promise<Participant[]> {
-  await ensureSweepstake();
+  await ensureReady();
   const { results } = await getD1()
     .prepare("SELECT * FROM participant WHERE sweepstake_id = ? ORDER BY created_at ASC")
     .bind(GAME_ID)
@@ -441,7 +463,7 @@ export async function listParticipants(): Promise<Participant[]> {
 export async function listParticipantGuesses(): Promise<
   Array<{ participant: Participant; guess: Guess; credit: NameCredit | null }>
 > {
-  await ensureSweepstake();
+  await ensureReady();
   const [participants, guesses, credits] = await Promise.all([
     listParticipants(),
     getD1().prepare("SELECT * FROM guess").all<GuessRow>(),
@@ -496,7 +518,7 @@ export async function updateParticipant(
   participantId: string,
   patch: Partial<Omit<Participant, "id" | "sweepstakeId">>,
 ): Promise<void> {
-  await ensureSweepstake();
+  await ensureReady();
   const entries = Object.entries(patch).filter(
     ([key]) => key in participantColumns,
   ) as Array<[keyof typeof participantColumns, unknown]>;
@@ -586,7 +608,7 @@ const sweepstakeColumns = {
 export async function updateSweepstake(
   patch: Partial<Omit<Sweepstake, "id" | "createdAt">>,
 ): Promise<void> {
-  await ensureSweepstake();
+  await ensureReady();
   const entries = Object.entries(patch).filter(
     ([key]) => key in sweepstakeColumns,
   ) as Array<[keyof typeof sweepstakeColumns, unknown]>;
@@ -601,7 +623,7 @@ export async function updateSweepstake(
 export async function saveActualResult(
   input: Omit<Result, "sweepstakeId" | "announcedAt">,
 ): Promise<void> {
-  await ensureSweepstake();
+  await ensureReady();
   const anythingKnown = Object.values(input).some((value) => value !== null);
   const announcedAt = anythingKnown ? Date.now() : null;
   const resultUpdate = getD1()
@@ -636,7 +658,7 @@ export async function setNameCredit(
   participantId: string,
   points: number,
 ): Promise<void> {
-  await ensureSweepstake();
+  await ensureReady();
   if (points <= 0) {
     await getD1()
       .prepare("DELETE FROM name_credit WHERE participant_id = ?")
@@ -661,7 +683,7 @@ function randomSecret(): string {
 
 export function getSessionSigningSecret(): Promise<Uint8Array> {
   signingSecretPromise ??= (async () => {
-    await ensureSweepstake();
+    await ensureReady();
     const existing = await getD1()
       .prepare("SELECT value FROM private_config WHERE key = ?")
       .bind("session_secret")

@@ -44,11 +44,16 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   const session = await getSession();
   if (!session) return null;
 
-  const participant = await readParticipant(session.participantId);
+  // These three reads don't depend on one another, so fire them concurrently:
+  // on D1 that collapses three sequential round-trips into roughly one, and this
+  // runs on every signed-in page load. A stale session (participant gone) wastes
+  // the other two reads, but that path is rare and the reads are harmless.
+  const [participant, sweepstake, guess] = await Promise.all([
+    readParticipant(session.participantId),
+    getSweepstake(),
+    readGuess(session.participantId),
+  ]);
   if (!participant) return null;
-
-  const sweepstake = await getSweepstake();
-  const guess = await readGuess(participant.id);
 
   return { participant, guess, sweepstake };
 }
