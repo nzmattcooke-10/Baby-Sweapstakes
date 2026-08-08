@@ -6,6 +6,14 @@ import { sites } from "./build/sites-vite-plugin";
 const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
   "00000000-0000-4000-8000-000000000000";
 
+// In production (Cloudflare Workers Build) these come from build-time env vars
+// pointing at the real D1 database. Locally they fall back to placeholders,
+// which is all miniflare needs — it keys its local D1 by binding name, not id.
+const D1_DATABASE_ID =
+  process.env.CF_D1_DATABASE_ID ?? SITE_CREATOR_PLACEHOLDER_DATABASE_ID;
+const D1_DATABASE_NAME =
+  process.env.CF_D1_DATABASE_NAME ?? "lewbner-baby-local";
+
 const { d1, r2 } = hostingConfig;
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
 
@@ -16,8 +24,8 @@ const localBindingConfig = {
     ? [
         {
           binding: d1,
-          database_name: "lewbner-baby-local",
-          database_id: SITE_CREATOR_PLACEHOLDER_DATABASE_ID,
+          database_name: D1_DATABASE_NAME,
+          database_id: D1_DATABASE_ID,
         },
       ]
     : [],
