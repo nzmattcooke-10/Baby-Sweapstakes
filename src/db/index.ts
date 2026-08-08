@@ -530,6 +530,23 @@ export async function updateParticipant(
     .run();
 }
 
+/**
+ * Remove a participant and everything hanging off them — their guess and any
+ * name credit — in a single batch. The board and scoreboard are derived purely
+ * from these rows, so once they're gone the person is gone everywhere. Used by
+ * the host to clear out test profiles.
+ */
+export async function deleteParticipant(participantId: string): Promise<void> {
+  await ensureReady();
+  await getD1().batch([
+    getD1().prepare("DELETE FROM guess WHERE participant_id = ?").bind(participantId),
+    getD1()
+      .prepare("DELETE FROM name_credit WHERE participant_id = ?")
+      .bind(participantId),
+    getD1().prepare("DELETE FROM participant WHERE id = ?").bind(participantId),
+  ]);
+}
+
 export type GuessWriteResult = "ok" | "closed" | "committed";
 
 const guessColumns = {

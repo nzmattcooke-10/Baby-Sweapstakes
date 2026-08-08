@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import {
+  deleteParticipant,
   saveActualResult,
   updateParticipant,
   updateSweepstake,
@@ -89,6 +90,18 @@ export async function setPaid(
   await requireAdmin();
   await updateParticipant(participantId, { hasPaid });
   revalidatePath("/admin");
+  return { ok: true };
+}
+
+/**
+ * Delete a player and their guesses outright — for clearing out test profiles.
+ * Irreversible, so the UI guards it behind a confirm step. Revalidates the
+ * whole tree because the removed person also drops off the board and scores.
+ */
+export async function deleteUser(participantId: string): Promise<AdminResult> {
+  await requireAdmin();
+  await deleteParticipant(participantId);
+  revalidatePath("/", "layout");
   return { ok: true };
 }
 

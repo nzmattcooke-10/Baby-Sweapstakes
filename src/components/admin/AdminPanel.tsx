@@ -5,6 +5,7 @@ import { Avatar } from "@/components/avatars/Avatar";
 import {
   changeAdminPin,
   closeEntries,
+  deleteUser,
   reopenEntries,
   resetPin,
   saveResult,
@@ -164,6 +165,11 @@ export function AdminPanel({
                 Paid
               </label>
               <PinResetButton participantId={person.id} run={run} />
+              <DeleteUserButton
+                participantId={person.id}
+                name={person.displayName}
+                run={run}
+              />
             </li>
           ))}
         </ul>
@@ -219,6 +225,58 @@ function PinResetButton({
         className="filled-b marker-caps min-h-[44px] px-3 text-base"
       >
         Set
+      </button>
+    </span>
+  );
+}
+
+/**
+ * Deleting a player wipes their guesses for good, so it can't be a single tap
+ * like the rest of the panel. The first tap only arms it; the destructive
+ * action lives behind a distinct confirm, with a way back out.
+ */
+function DeleteUserButton({
+  participantId,
+  name,
+  run,
+}: {
+  participantId: string;
+  name: string;
+  run: (action: () => Promise<AdminResult>, success?: string) => void;
+}) {
+  const [confirming, setConfirming] = useState(false);
+
+  if (!confirming) {
+    return (
+      <button
+        type="button"
+        onClick={() => setConfirming(true)}
+        className="drawn-d marker-caps min-h-[44px] px-3 text-base text-danger"
+      >
+        Delete
+      </button>
+    );
+  }
+
+  return (
+    <span className="flex items-center gap-1">
+      <button
+        type="button"
+        onClick={() => {
+          run(() => deleteUser(participantId), `Deleted ${name}.`);
+          setConfirming(false);
+        }}
+        className="filled marker-caps min-h-[44px] px-3 text-base"
+        style={{ background: "var(--danger)", color: "#fff" }}
+      >
+        Delete for good
+      </button>
+      <button
+        type="button"
+        onClick={() => setConfirming(false)}
+        className="drawn-d marker-caps min-h-[44px] px-3 text-base"
+      >
+        Keep
       </button>
     </span>
   );
