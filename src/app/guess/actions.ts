@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { commitParticipant, updateDraftGuess } from "@/db";
 import type { Guess, GuessPatch, Participant, Sweepstake } from "@/db/schema";
@@ -61,6 +62,10 @@ async function patchGuess(patch: GuessPatch): Promise<ActionResult> {
     };
   }
 
+  // Invalidate the whole /guess segment (hub, every panel, review) so the client
+  // Router Cache doesn't serve a stale hub after the save — without this the tick
+  // for the just-saved guess is missing in production, where that cache is live.
+  revalidatePath("/guess", "layout");
   return { ok: true };
 }
 
