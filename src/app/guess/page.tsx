@@ -78,6 +78,19 @@ export default async function GuessHubPage() {
         </p>
       )}
 
+      <p
+        className="drawn-c px-5 py-4 text-center text-lg"
+        style={{
+          background: "color-mix(in srgb, var(--hl-teal) 18%, var(--surface))",
+          borderWidth: "7px",
+          borderImageWidth: "7px",
+        }}
+      >
+        <span className="hl hl-yellow">$10 buy-in.</span> That&rsquo;s five
+        guesses — and five shots at glory. Each category pays out to its own
+        winner, so you could take home one, none, or the lot.
+      </p>
+
       {/* Numbered panels, not a settings list. Six identical icon-title-chevron
           rows is the register this redesign exists to leave behind, so each
           panel is numbered in the hand, and whichever one is next gets drawn
