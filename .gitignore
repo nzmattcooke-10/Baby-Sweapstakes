@@ -19,7 +19,10 @@
 /out/
 
 # production
-/build
+# `build/` holds generated output, but sites-vite-plugin.ts is source that
+# vite.config.ts imports at build time, so it must be committed for CI to build.
+/build/*
+!/build/sites-vite-plugin.ts
 /dist/
 /.wrangler/
 /outputs/
