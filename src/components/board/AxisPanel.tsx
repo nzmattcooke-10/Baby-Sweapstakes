@@ -79,6 +79,22 @@ export function AxisPanel({
           className="relative"
           style={{ height: laneCount * LANE_HEIGHT + 8 }}
         >
+          {/* A dotted plumb line from each avatar down to the ruler, so a chip
+              lifted into an upper lane still reads against its value. Every line
+              is drawn before every chip, so avatars always sit on top of them. */}
+          {sorted.map((item, index) => (
+            <div
+              key={`line-${item.entry.participantId}`}
+              aria-hidden="true"
+              className="absolute w-0 -translate-x-1/2 border-l-2 border-dotted border-ink-soft"
+              style={{
+                left: `${positions[index]}%`,
+                bottom: 0,
+                height: lanes[index] * LANE_HEIGHT + CHIP / 2,
+              }}
+            />
+          ))}
+
           {sorted.map((item, index) => (
             <div
               key={item.entry.participantId}
