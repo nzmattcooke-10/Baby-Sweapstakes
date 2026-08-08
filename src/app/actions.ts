@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
   createParticipant,
@@ -8,8 +9,9 @@ import {
   isNameTaken,
   NameTakenError,
   updateParticipant,
+  updateParticipantProfile,
 } from "@/db";
-import { getSweepstake } from "@/lib/data";
+import { getCurrentUser, getSweepstake } from "@/lib/data";
 import {
   MAX_ATTEMPTS,
   PIN_PROBLEM_MESSAGE,
@@ -60,6 +62,15 @@ export type AuthResult = { ok: false; error: string };
 // base64 means the client didn't downscale, and we don't want that in the row.
 const MAX_PHOTO_CHARS = 400_000;
 
+/** True when a supplied photo isn't a small inline image we're willing to store. */
+function isBadPhoto(photo: string | null): boolean {
+  if (photo === null) return false;
+  return (
+    !/^data:image\/(png|jpe?g|webp);base64,/.test(photo) ||
+    photo.length > MAX_PHOTO_CHARS
+  );
+}
+
 export async function register(
   rawName: string,
   avatarKey: string,
@@ -71,16 +82,8 @@ export async function register(
   const check = await checkName(name);
   if (check.status === "invalid") return { ok: false, error: check.error };
 
-  if (avatarPhoto !== null) {
-    if (
-      !/^data:image\/(png|jpe?g|webp);base64,/.test(avatarPhoto) ||
-      avatarPhoto.length > MAX_PHOTO_CHARS
-    ) {
-      return {
-        ok: false,
-        error: "That photo didn't work — try a smaller image.",
-      };
-    }
+  if (isBadPhoto(avatarPhoto)) {
+    return { ok: false, error: "That photo didn't work — try a smaller image." };
   }
   if (check.status === "taken") {
     return {
@@ -178,4 +181,59 @@ export async function signIn(
 export async function signOut(): Promise<never> {
   await clearSession();
   redirect("/");
+}
+
+/**
+ * Change your own name, avatar and colour after joining — the guesses are never
+ * touched, so this stays open whatever the sweepstake's status. The name still
+ * has to be unique, but keeping your current one is always allowed; only a clash
+ * with *someone else* is refused.
+ */
+export async function updateProfile(
+  rawName: string,
+  avatarKey: string,
+  accentColor: string,
+  avatarPhoto: string | null = null,
+): Promise<AuthResult | never> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "You're not signed in." };
+
+  const name = rawName.trim();
+  const check = await checkName(name);
+  if (check.status === "invalid") return { ok: false, error: check.error };
+
+  if (isBadPhoto(avatarPhoto)) {
+    return { ok: false, error: "That photo didn't work — try a smaller image." };
+  }
+
+  const newNormalised = normalise(name);
+  const keepingOwnName = newNormalised === normalise(user.participant.displayName);
+  if (!keepingOwnName && (await isNameTaken(newNormalised))) {
+    return {
+      ok: false,
+      error: `Somebody's already using "${name}". Add a surname initial.`,
+    };
+  }
+
+  try {
+    await updateParticipantProfile(user.participant.id, {
+      displayName: name,
+      displayNameNormalised: newNormalised,
+      avatarKey,
+      avatarPhoto,
+      accentColor,
+    });
+  } catch (error) {
+    if (error instanceof NameTakenError) {
+      return {
+        ok: false,
+        error: `Somebody's already using "${name}". Add a surname initial.`,
+      };
+    }
+    throw error;
+  }
+
+  // Their face and name appear across the board, hub and scores.
+  revalidatePath("/", "layout");
+  redirect("/board");
 }

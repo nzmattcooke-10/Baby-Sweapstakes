@@ -558,6 +558,44 @@ export async function updateParticipant(
 }
 
 /**
+ * Change a player's identity — name, avatar and colour — after they've joined.
+ * The normalised name is written alongside the display name because it drives
+ * both sign-in lookup and the unique index; a collision with someone else
+ * surfaces as NameTakenError, exactly as it does at sign-up.
+ */
+export async function updateParticipantProfile(
+  id: string,
+  input: {
+    displayName: string;
+    displayNameNormalised: string;
+    avatarKey: string;
+    avatarPhoto: string | null;
+    accentColor: string;
+  },
+): Promise<void> {
+  await ensureReady();
+  try {
+    await getD1()
+      .prepare(
+        `UPDATE participant SET display_name = ?, display_name_normalised = ?,
+          avatar_key = ?, avatar_photo = ?, accent_color = ? WHERE id = ?`,
+      )
+      .bind(
+        input.displayName,
+        input.displayNameNormalised,
+        input.avatarKey,
+        input.avatarPhoto,
+        input.accentColor,
+        id,
+      )
+      .run();
+  } catch (error) {
+    if (String(error).toLowerCase().includes("unique")) throw new NameTakenError();
+    throw error;
+  }
+}
+
+/**
  * Remove a participant and everything hanging off them — their guess and any
  * name credit — in a single batch. The board and scoreboard are derived purely
  * from these rows, so once they're gone the person is gone everywhere. Used by
