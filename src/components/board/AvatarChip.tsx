@@ -40,6 +40,7 @@ export function AvatarChip({
       <Avatar
         avatarKey={entry.avatarKey}
         accent={entry.accentColor}
+        photo={entry.avatarPhoto}
         size={size}
       />
       <span className="sr-only">

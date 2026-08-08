@@ -66,6 +66,7 @@ export default async function ResultsPage() {
       id: person.id,
       displayName: person.displayName,
       avatarKey: person.avatarKey,
+      avatarPhoto: person.avatarPhoto,
       accentColor: person.accentColor,
       committedAt: person.committedAt,
       birthDate: guess.birthDate,
@@ -161,6 +162,7 @@ export default async function ResultsPage() {
                       <Avatar
                         avatarKey={row.avatarKey}
                         accent={row.accentColor}
+                        photo={row.avatarPhoto}
                         size={26}
                       />
                       <span className="marker-caps text-lg">
@@ -233,6 +235,7 @@ export default async function ResultsPage() {
                         <Avatar
                           avatarKey={row.avatarKey}
                           accent={row.accentColor}
+                          photo={row.avatarPhoto}
                           size={24}
                         />
                         {row.displayName}

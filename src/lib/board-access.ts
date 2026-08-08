@@ -21,6 +21,7 @@ export type BoardEntry = {
   participantId: string;
   displayName: string;
   avatarKey: string;
+  avatarPhoto: string | null;
   accentColor: string;
   birthDate: string | null;
   birthMinuteOfDay: number | null;
@@ -42,7 +43,12 @@ export type BoardView =
       committed: number;
       total: number;
       /** Participants who never got their guesses in. */
-      missing: Array<{ displayName: string; avatarKey: string; accentColor: string }>;
+      missing: Array<{
+        displayName: string;
+        avatarKey: string;
+        avatarPhoto: string | null;
+        accentColor: string;
+      }>;
     };
 
 export async function getBoardView(
@@ -52,6 +58,7 @@ export async function getBoardView(
     participantId: participant.id,
     displayName: participant.displayName,
     avatarKey: participant.avatarKey,
+    avatarPhoto: participant.avatarPhoto,
     accentColor: participant.accentColor,
     committedAt: participant.committedAt,
     birthDate: guess.birthDate,
@@ -74,6 +81,7 @@ export async function getBoardView(
     participantId: row.participantId,
     displayName: row.displayName,
     avatarKey: row.avatarKey,
+    avatarPhoto: row.avatarPhoto,
     accentColor: row.accentColor,
     birthDate: row.birthDate,
     birthMinuteOfDay: row.birthMinuteOfDay,
@@ -92,6 +100,7 @@ export async function getBoardView(
       .map((r) => ({
         displayName: r.displayName,
         avatarKey: r.avatarKey,
+        avatarPhoto: r.avatarPhoto,
         accentColor: r.accentColor,
       })),
   };

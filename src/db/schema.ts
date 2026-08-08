@@ -51,6 +51,8 @@ export type Participant = {
   sweepstakeId: string;
   displayName: string;
   avatarKey: string;
+  /** An uploaded photo (small JPEG data URL) that overrides the drawn avatar. */
+  avatarPhoto: string | null;
   accentColor: string;
   pinHash: string;
   pinAttempts: number;
@@ -133,6 +135,7 @@ export const participantsTable = sqliteTable(
     displayName: text("display_name").notNull(),
     displayNameNormalised: text("display_name_normalised").notNull(),
     avatarKey: text("avatar_key").notNull(),
+    avatarPhoto: text("avatar_photo"),
     accentColor: text("accent_color").notNull(),
     pinHash: text("pin_hash").notNull(),
     pinAttempts: integer("pin_attempts").notNull().default(0),

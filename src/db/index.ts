@@ -66,6 +66,7 @@ async function ensureSchema(): Promise<void> {
         display_name TEXT NOT NULL,
         display_name_normalised TEXT NOT NULL,
         avatar_key TEXT NOT NULL,
+        avatar_photo TEXT,
         accent_color TEXT NOT NULL,
         pin_hash TEXT NOT NULL,
         pin_attempts INTEGER DEFAULT 0 NOT NULL,
@@ -110,10 +111,31 @@ async function ensureSchema(): Promise<void> {
         created_at INTEGER NOT NULL
       )`),
     ]);
+
+    // `CREATE TABLE IF NOT EXISTS` never touches a table that already exists, so
+    // columns added after a database was first seeded — like avatar_photo — have
+    // to be patched in explicitly. The ALTER errors on the second run once the
+    // column is there; that specific "duplicate column" is the success case.
+    await ensureColumn("participant", "avatar_photo", "TEXT");
+
     schemaReady = true;
   } catch (error) {
     console.error("D1 schema initialization failed", error);
     throw error;
+  }
+}
+
+async function ensureColumn(
+  table: string,
+  column: string,
+  type: string,
+): Promise<void> {
+  try {
+    await getD1()
+      .prepare(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`)
+      .run();
+  } catch (error) {
+    if (!String(error).toLowerCase().includes("duplicate column")) throw error;
   }
 }
 
@@ -140,6 +162,7 @@ type ParticipantRow = {
   display_name: string;
   display_name_normalised: string;
   avatar_key: string;
+  avatar_photo: string | null;
   accent_color: string;
   pin_hash: string;
   pin_attempts: number;
@@ -202,6 +225,7 @@ function toParticipant(row: ParticipantRow): Participant {
     sweepstakeId: row.sweepstake_id,
     displayName: row.display_name,
     avatarKey: row.avatar_key,
+    avatarPhoto: row.avatar_photo,
     accentColor: row.accent_color,
     pinHash: row.pin_hash,
     pinAttempts: row.pin_attempts,
@@ -367,6 +391,7 @@ export async function createParticipant(input: {
   displayName: string;
   displayNameNormalised: string;
   avatarKey: string;
+  avatarPhoto?: string | null;
   accentColor: string;
   pinHash: string;
 }): Promise<Participant> {
@@ -380,15 +405,16 @@ export async function createParticipant(input: {
       getD1()
         .prepare(`INSERT INTO participant (
           id, sweepstake_id, display_name, display_name_normalised, avatar_key,
-          accent_color, pin_hash, pin_attempts, locked_until, has_paid,
-          committed_at, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, NULL, 0, NULL, ?)`)
+          avatar_photo, accent_color, pin_hash, pin_attempts, locked_until,
+          has_paid, committed_at, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, 0, NULL, ?)`)
         .bind(
           id,
           GAME_ID,
           input.displayName,
           input.displayNameNormalised,
           input.avatarKey,
+          input.avatarPhoto ?? null,
           input.accentColor,
           input.pinHash,
           now,
@@ -498,6 +524,7 @@ export async function listParticipantGuesses(): Promise<
 const participantColumns = {
   displayName: "display_name",
   avatarKey: "avatar_key",
+  avatarPhoto: "avatar_photo",
   accentColor: "accent_color",
   pinHash: "pin_hash",
   pinAttempts: "pin_attempts",

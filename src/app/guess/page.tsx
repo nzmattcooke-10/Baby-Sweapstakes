@@ -60,6 +60,7 @@ export default async function GuessHubPage() {
         <Avatar
           avatarKey={participant.avatarKey}
           accent={participant.accentColor}
+          photo={participant.avatarPhoto}
           size={60}
         />
         <div className="min-w-0">

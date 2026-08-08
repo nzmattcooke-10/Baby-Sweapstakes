@@ -33,6 +33,8 @@ const PINK = "#E38DA6";
 type Props = {
   avatarKey: string;
   accent: string;
+  /** An uploaded photo (data URL). When set it replaces the drawn face. */
+  photo?: string | null;
   size?: number;
   /** Accessible name. Omit to render decoratively (the default). */
   title?: string;
@@ -391,6 +393,7 @@ function AnimalFront({ def, seed }: { def: AvatarDef; seed: string }) {
 export function Avatar({
   avatarKey,
   accent,
+  photo,
   size = 64,
   title,
   className,
@@ -405,6 +408,54 @@ export function Avatar({
   const ring = roughCircle(32, 32, 30.4, `${seed}-disc`, { wobble: 0.022 });
   const ring2 = roughCircle(32, 32, 30.4, `${seed}-disc2`, { wobble: 0.03 });
   const face = roughEllipse(32, 34, 14, 16, `${seed}-face`, { wobble: 0.035 });
+
+  // An uploaded photo replaces the whole drawn face. It's clipped to a disc
+  // just inside the ring, so the accent colour still frames it as a border and
+  // the hand-drawn edge stays — a photo reads as the same object as the drawn
+  // avatars, not a foreign rectangle dropped onto the board.
+  if (photo) {
+    const clipId = `ph-${seed}`;
+    return (
+      <svg
+        viewBox="0 0 64 64"
+        width={size}
+        height={size}
+        className={className}
+        role={decorative ? undefined : "img"}
+        aria-hidden={decorative || undefined}
+        aria-label={title}
+      >
+        <clipPath id={clipId}>
+          <circle cx="32" cy="32" r="25.5" />
+        </clipPath>
+        <path d={ring} fill={disc.hex} />
+        <image
+          href={photo}
+          x="6.5"
+          y="6.5"
+          width="51"
+          height="51"
+          preserveAspectRatio="xMidYMid slice"
+          clipPath={`url(#${clipId})`}
+        />
+        <path
+          d={ring}
+          fill="none"
+          stroke={INK}
+          strokeWidth={LINE}
+          strokeLinecap="round"
+        />
+        <path
+          d={ring2}
+          fill="none"
+          stroke={INK}
+          strokeWidth={LINE * 0.6}
+          strokeLinecap="round"
+          opacity="0.4"
+        />
+      </svg>
+    );
+  }
 
   /**
    * The shaded half of the palette has to stay legible at plot size.

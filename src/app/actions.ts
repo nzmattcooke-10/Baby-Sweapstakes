@@ -56,15 +56,32 @@ export async function checkName(rawName: string): Promise<NameCheck> {
 
 export type AuthResult = { ok: false; error: string };
 
+// A resized avatar photo is a small square JPEG; anything much over ~300KB of
+// base64 means the client didn't downscale, and we don't want that in the row.
+const MAX_PHOTO_CHARS = 400_000;
+
 export async function register(
   rawName: string,
   avatarKey: string,
   accentColor: string,
   pin: string,
+  avatarPhoto: string | null = null,
 ): Promise<AuthResult | never> {
   const name = rawName.trim();
   const check = await checkName(name);
   if (check.status === "invalid") return { ok: false, error: check.error };
+
+  if (avatarPhoto !== null) {
+    if (
+      !/^data:image\/(png|jpe?g|webp);base64,/.test(avatarPhoto) ||
+      avatarPhoto.length > MAX_PHOTO_CHARS
+    ) {
+      return {
+        ok: false,
+        error: "That photo didn't work — try a smaller image.",
+      };
+    }
+  }
   if (check.status === "taken") {
     return {
       ok: false,
@@ -93,6 +110,7 @@ export async function register(
       displayName: name,
       displayNameNormalised: normalise(name),
       avatarKey,
+      avatarPhoto,
       accentColor,
       pinHash: await hashPin(pin),
     });

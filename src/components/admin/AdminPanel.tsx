@@ -126,6 +126,7 @@ export function AdminPanel({
                 <Avatar
                   avatarKey={person.avatarKey}
                   accent={person.accentColor}
+                  photo={person.avatarPhoto}
                   size={32}
                 />
                 <span className="min-w-0 flex-1 text-base">

@@ -24,6 +24,7 @@ export default async function BoardPage(props: {
         <Avatar
           avatarKey={participant.avatarKey}
           accent={participant.accentColor}
+          photo={participant.avatarPhoto}
           size={44}
         />
         <div className="min-w-0 flex-1">
@@ -74,6 +75,7 @@ export default async function BoardPage(props: {
                       <Avatar
                         avatarKey={person.avatarKey}
                         accent={person.accentColor}
+                        photo={person.avatarPhoto}
                         size={24}
                       />
                     </span>

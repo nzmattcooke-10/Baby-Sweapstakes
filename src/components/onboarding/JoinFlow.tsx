@@ -13,10 +13,37 @@ type Step = "name" | "avatar" | "pin" | "signin";
 const BUTTON =
   "filled marker-caps flex min-h-[54px] items-center justify-center gap-2 px-6 text-xl";
 
+/**
+ * Downscale and centre-crop whatever the phone hands us into a small square
+ * JPEG, so what lands in the database is a ~256px thumbnail (tens of KB) rather
+ * than a multi-megabyte camera photo. Everything happens on the device; the
+ * original file never leaves it.
+ */
+async function fileToAvatarPhoto(file: File): Promise<string> {
+  const SIZE = 256;
+  const bitmap = await createImageBitmap(file, {
+    imageOrientation: "from-image",
+  });
+  const scale = Math.max(SIZE / bitmap.width, SIZE / bitmap.height);
+  const w = bitmap.width * scale;
+  const h = bitmap.height * scale;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = SIZE;
+  canvas.height = SIZE;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("no-canvas");
+  ctx.drawImage(bitmap, (SIZE - w) / 2, (SIZE - h) / 2, w, h);
+  bitmap.close();
+
+  return canvas.toDataURL("image/jpeg", 0.82);
+}
+
 export function JoinFlow() {
   const [step, setStep] = useState<Step>("name");
   const [name, setName] = useState("");
   const [avatarKey, setAvatarKey] = useState(AVATARS[0].key);
+  const [photo, setPhoto] = useState<string | null>(null);
   const [accent, setAccent] = useState<string>(ACCENTS[0].key);
   const [pin, setPin] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -51,9 +78,24 @@ export function JoinFlow() {
       const result =
         step === "signin"
           ? await signIn(name, pin)
-          : await register(name, avatarKey, accent, pin);
+          : await register(name, avatarKey, accent, pin, photo);
       // Both redirect on success, so reaching here always means a failure.
       if (result && !result.ok) setError(result.error);
+    });
+  }
+
+  function onPickPhoto(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    // Clear the input so re-picking the same file after a removal still fires.
+    event.target.value = "";
+    if (!file) return;
+    setError(null);
+    startTransition(async () => {
+      try {
+        setPhoto(await fileToAvatarPhoto(file));
+      } catch {
+        setError("That image wouldn't load — try a different photo.");
+      }
     });
   }
 
@@ -107,42 +149,91 @@ export function JoinFlow() {
       {step === "avatar" && (
         <div className="flex flex-col gap-6">
           <div className="flex flex-col items-center gap-2">
-            <Avatar avatarKey={avatarKey} accent={accent} size={104} />
+            <Avatar avatarKey={avatarKey} accent={accent} photo={photo} size={104} />
             <p className="marker-caps text-2xl">{name}</p>
           </div>
 
           <fieldset className="border-0 p-0">
             <legend className="mb-3 marker-caps text-xl">Pick your face</legend>
             <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
-              {AVATARS.map((option) => (
-                <label
-                  key={option.key}
-                  className={`flex cursor-pointer items-center justify-center border-[2.5px] p-1 ${
-                    avatarKey === option.key
-                      ? "border-ink bg-primary"
-                      : "border-transparent"
-                  }`}
-                  style={{ borderRadius: "var(--radius-b)" }}
-                >
-                  <input
-                    type="radio"
-                    name="avatar"
-                    value={option.key}
-                    checked={avatarKey === option.key}
-                    onChange={() => setAvatarKey(option.key)}
-                    className="sr-only"
-                  />
-                  {/* The description is the accessible name — this is the one
-                      place the pictures actually need describing. */}
+              {/* Upload tile. Sits first so "use my own photo" is the obvious
+                  alternative to the drawn set, not something hidden below it. */}
+              <label
+                className={`flex cursor-pointer items-center justify-center border-[2.5px] p-1 ${
+                  photo ? "border-ink bg-primary" : "border-transparent"
+                }`}
+                style={{ borderRadius: "var(--radius-b)" }}
+              >
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={onPickPhoto}
+                  className="sr-only"
+                />
+                {photo ? (
                   <Avatar
-                    avatarKey={option.key}
+                    avatarKey={avatarKey}
                     accent={accent}
+                    photo={photo}
                     size={52}
-                    title={option.label}
+                    title="Your photo"
                   />
-                </label>
-              ))}
+                ) : (
+                  <span
+                    aria-hidden="true"
+                    className="marker-caps flex h-[52px] w-[52px] flex-col items-center justify-center rounded-full border-[2.5px] border-dashed border-ink text-ink-soft"
+                  >
+                    <span className="text-2xl leading-none">+</span>
+                    <span className="text-xs leading-tight">Photo</span>
+                  </span>
+                )}
+                <span className="sr-only">Upload your own photo</span>
+              </label>
+
+              {AVATARS.map((option) => {
+                const selected = !photo && avatarKey === option.key;
+                return (
+                  <label
+                    key={option.key}
+                    className={`flex cursor-pointer items-center justify-center border-[2.5px] p-1 ${
+                      selected ? "border-ink bg-primary" : "border-transparent"
+                    }`}
+                    style={{ borderRadius: "var(--radius-b)" }}
+                  >
+                    <input
+                      type="radio"
+                      name="avatar"
+                      value={option.key}
+                      checked={selected}
+                      // Picking a drawn face drops the photo — the two are one
+                      // choice, and a stored photo would otherwise still win.
+                      onChange={() => {
+                        setAvatarKey(option.key);
+                        setPhoto(null);
+                      }}
+                      className="sr-only"
+                    />
+                    {/* The description is the accessible name — this is the one
+                        place the pictures actually need describing. */}
+                    <Avatar
+                      avatarKey={option.key}
+                      accent={accent}
+                      size={52}
+                      title={option.label}
+                    />
+                  </label>
+                );
+              })}
             </div>
+            {photo && (
+              <button
+                type="button"
+                onClick={() => setPhoto(null)}
+                className="mt-2 min-h-[44px] text-base underline decoration-2 underline-offset-4"
+              >
+                Remove photo
+              </button>
+            )}
           </fieldset>
 
           <fieldset className="border-0 p-0">

@@ -54,7 +54,12 @@ export function GuessDetail({
       className="drawn-c ink-in mt-3 px-4 py-4"
     >
       <div className="mb-2 flex items-center gap-3">
-        <Avatar avatarKey={entry.avatarKey} accent={entry.accentColor} size={40} />
+        <Avatar
+          avatarKey={entry.avatarKey}
+          accent={entry.accentColor}
+          photo={entry.avatarPhoto}
+          size={40}
+        />
         <p className="marker-caps flex-1 text-2xl leading-tight">{entry.displayName}</p>
         <button
           type="button"
