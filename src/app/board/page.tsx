@@ -21,12 +21,20 @@ export default async function BoardPage(props: {
   return (
     <main id="main" className="mx-auto flex max-w-2xl flex-col gap-5 px-4 pt-6 pb-14">
       <header className="flex items-center gap-3">
-        <Avatar
-          avatarKey={participant.avatarKey}
-          accent={participant.accentColor}
-          photo={participant.avatarPhoto}
-          size={44}
-        />
+        {/* The avatar is the way in to editing your name and face. */}
+        <Link
+          href="/profile"
+          aria-label="Edit your name and avatar"
+          className="rounded-full outline-offset-2 focus-visible:outline-3 focus-visible:outline-[var(--focus)]"
+          style={{ lineHeight: 0 }}
+        >
+          <Avatar
+            avatarKey={participant.avatarKey}
+            accent={participant.accentColor}
+            photo={participant.avatarPhoto}
+            size={44}
+          />
+        </Link>
         <div className="min-w-0 flex-1">
           <h1 className="marker-caps text-3xl leading-tight">The board</h1>
           <p className="mt-1 text-base text-ink-soft">
@@ -88,12 +96,11 @@ export default async function BoardPage(props: {
         </>
       )}
 
+      {/* No host-tools link: the host reaches /admin directly and signs in with
+          the host PIN. Keeping it off the board means players never see it. */}
       <footer className="flex justify-center gap-5 pt-3 text-base">
         <Link href="/results" className="min-h-[44px] underline decoration-2 underline-offset-4">
           Scores
-        </Link>
-        <Link href="/admin" className="min-h-[44px] underline decoration-2 underline-offset-4">
-          Host tools
         </Link>
         <SignOutButton />
       </footer>
