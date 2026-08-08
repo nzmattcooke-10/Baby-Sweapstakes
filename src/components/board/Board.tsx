@@ -41,6 +41,22 @@ export function Board({
   const withLength = entries.filter((e) => e.lengthMm !== null);
   const withTime = entries.filter((e) => e.birthMinuteOfDay !== null);
 
+  // The guess inputs allow 0.5–8kg and 25–75cm, far wider than the everyday
+  // window, so the ruler has to grow to whatever people actually guessed —
+  // otherwise a 6kg punt lands in the margin past the end of the line.
+  const weightAxis = scaleAxis(
+    withWeight.map((e) => e.weightGrams!),
+    { min: 2000, max: 5000 },
+    1000,
+    (v) => `${v / 1000}kg`,
+  );
+  const lengthAxis = scaleAxis(
+    withLength.map((e) => e.lengthMm!),
+    { min: 450, max: 550 },
+    50,
+    (v) => `${v / 10}cm`,
+  );
+
   return (
     <div className="flex flex-col gap-4">
       <CalendarBoard
@@ -61,14 +77,7 @@ export function Board({
           value: entry.weightGrams!,
           label: formatWeightBoth(entry.weightGrams!),
         }))}
-        min={2000}
-        max={5000}
-        ticks={[
-          { value: 2000, label: "2kg" },
-          { value: 3000, label: "3kg" },
-          { value: 4000, label: "4kg" },
-          { value: 5000, label: "5kg" },
-        ]}
+        {...weightAxis}
         {...panelProps("weight")}
       />
 
@@ -111,13 +120,7 @@ export function Board({
           value: entry.lengthMm!,
           label: formatLengthBoth(entry.lengthMm!),
         }))}
-        min={440}
-        max={580}
-        ticks={[
-          { value: 450, label: "45cm" },
-          { value: 500, label: "50cm" },
-          { value: 550, label: "55cm" },
-        ]}
+        {...lengthAxis}
         {...panelProps("length")}
       />
 
@@ -130,4 +133,28 @@ function average(values: number[], format: (value: number) => string): string {
   if (values.length === 0) return "";
   const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
   return `Family average: ${format(mean)}`;
+}
+
+/**
+ * Size an axis to the guesses on it. The `fallback` window is the everyday range
+ * that shows when nobody strays outside it; any value beyond it pushes the ends
+ * out to the next round `step`. Ticks land on those round values, and the domain
+ * carries half a step of slack at each end so an extreme guess sits *on* the
+ * ruler rather than jammed against its edge.
+ */
+function scaleAxis(
+  values: number[],
+  fallback: { min: number; max: number },
+  step: number,
+  label: (value: number) => string,
+): { min: number; max: number; ticks: Array<{ value: number; label: string }> } {
+  const firstTick = Math.floor(Math.min(fallback.min, ...values) / step) * step;
+  const lastTick = Math.ceil(Math.max(fallback.max, ...values) / step) * step;
+
+  const ticks: Array<{ value: number; label: string }> = [];
+  for (let value = firstTick; value <= lastTick + step / 2; value += step) {
+    ticks.push({ value, label: label(value) });
+  }
+
+  return { min: firstTick - step / 2, max: lastTick + step / 2, ticks };
 }
