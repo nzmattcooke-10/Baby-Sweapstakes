@@ -27,9 +27,12 @@ export const LENGTH_MAX_MM = 600;
 export const LENGTH_DEFAULT_MM = 500;
 export const LENGTH_STEP_MM = 5;
 
-/** Fraction of the visual range actually used at the numeric extremes. */
-const VISUAL_FLOOR = 0.16;
-const VISUAL_CEILING = 0.84;
+/** Fraction of the visual range actually used at the numeric extremes.
+ *  Widened from 0.16–0.84 so the squash-and-stretch is easy to read as the
+ *  slider moves — the drawing still stops short of the raw 0–1 extremes so the
+ *  ends stay charming rather than alarming (rule 2 above). */
+const VISUAL_FLOOR = 0.06;
+const VISUAL_CEILING = 0.94;
 
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
@@ -83,8 +86,11 @@ export function babyGeometry(
   const stretch = morphT(lengthMm, LENGTH_MIN_MM, LENGTH_MAX_MM);
 
   const torsoTop = 40;
-  const torsoHeight = lerp(24, 34, stretch);
-  const torsoHalfWidth = lerp(10, 18, plump);
+  // Wider travel on both axes so the sliders visibly squash and stretch the
+  // baby. Weight drives the torso/limb/cheek width; length drives the torso
+  // height and legs. The head stays out of all of it (rule 1).
+  const torsoHeight = lerp(21, 35, stretch);
+  const torsoHalfWidth = lerp(8, 22, plump);
 
   return {
     headCx: 50,
@@ -97,10 +103,10 @@ export function babyGeometry(
     // Limbs stay stubby. Thick strokes read as a yoke across the shoulders
     // rather than as arms, which flattens the silhouette and hides the very
     // weight change the toy exists to show.
-    limbWidth: lerp(5.5, 8.5, plump),
-    legLength: lerp(16, 28, stretch),
+    limbWidth: lerp(5, 10, plump),
+    legLength: lerp(13, 30, stretch),
     shoulderY: torsoTop + 6,
-    cheekOffset: lerp(7, 8.5, plump),
-    cheekR: lerp(2.4, 3.6, plump),
+    cheekOffset: lerp(6.5, 9, plump),
+    cheekR: lerp(2.2, 4, plump),
   };
 }

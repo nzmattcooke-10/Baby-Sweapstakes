@@ -2,7 +2,6 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { CalendarPanel } from "@/components/toys/CalendarPanel";
 import { ClampPanel } from "@/components/toys/ClampPanel";
-import { NamePanel } from "@/components/toys/NamePanel";
 import { ScalePanel } from "@/components/toys/ScalePanel";
 import { SexCards } from "@/components/toys/SexCards";
 import { SkyArcPanel } from "@/components/toys/SkyArcPanel";
@@ -60,9 +59,6 @@ export default async function PanelPage(props: {
         />
       )}
       {panel === "sex" && <SexCards initial={guess.sex} />}
-      {panel === "name" && (
-        <NamePanel initialName={guess.firstName} />
-      )}
     </main>
   );
 }

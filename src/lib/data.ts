@@ -90,7 +90,6 @@ export const PANELS = [
   "weight",
   "length",
   "sex",
-  "name",
 ] as const;
 
 export type PanelKey = (typeof PANELS)[number];
@@ -110,7 +109,6 @@ export const PANEL_META: Record<
   weight: { title: "The weight", blurb: "Load up the scale", icon: "weight" },
   length: { title: "The length", blurb: "Stretch out the ruler", icon: "length" },
   sex: { title: "Boy or girl", blurb: "Bonnet or cap?", icon: "sex" },
-  name: { title: "The name", blurb: "Kept secret until it's announced", icon: "name" },
 };
 
 export function panelDone(guess: Guess, panel: PanelKey): boolean {
@@ -125,8 +123,6 @@ export function panelDone(guess: Guess, panel: PanelKey): boolean {
       return guess.lengthMm !== null;
     case "sex":
       return guess.sex !== null;
-    case "name":
-      return guess.firstName !== null && guess.firstName.trim() !== "";
   }
 }
 

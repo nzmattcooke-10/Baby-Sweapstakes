@@ -6,6 +6,7 @@ import { ACCENTS, AVATARS } from "@/components/avatars/avatar-set";
 import { checkName, register, signIn } from "@/app/actions";
 import { Icon } from "@/components/zine/Icon";
 import { PIN_LENGTH } from "@/lib/pin";
+import { scrollFieldIntoView } from "@/lib/scroll-into-view";
 
 type Step = "name" | "avatar" | "pin" | "signin";
 
@@ -74,11 +75,10 @@ export function JoinFlow() {
       {step === "name" && (
         <div className="flex flex-col gap-3">
           <label htmlFor={nameId} className="marker-caps text-2xl">
-            What should we call you?
+            Sign in to play
           </label>
           <p id={`${nameId}-help`} className="text-base text-ink-soft">
-            However the family knows you — &ldquo;Nana Joy&rdquo;, &ldquo;Uncle
-            Dave&rdquo;.
+            Enter your name below.
           </p>
           <input
             id={nameId}
@@ -88,6 +88,7 @@ export function JoinFlow() {
             maxLength={30}
             aria-describedby={`${nameId}-help`}
             onChange={(e) => setName(e.target.value)}
+            onFocus={scrollFieldIntoView}
             onKeyDown={(e) => e.key === "Enter" && continueFromName()}
             className="field min-h-[58px] px-4 text-xl"
           />
@@ -214,6 +215,7 @@ export function JoinFlow() {
             value={pin}
             aria-describedby={`${pinId}-help`}
             onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
+            onFocus={scrollFieldIntoView}
             onKeyDown={(e) => e.key === "Enter" && submitPin()}
             className="field min-h-[64px] px-4 text-center text-4xl tracking-[0.45em]"
           />

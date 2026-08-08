@@ -18,7 +18,6 @@ export default async function ReviewPage() {
     { panel: "weight", value: formatWeightBoth(guess.weightGrams!) },
     { panel: "length", value: formatLengthBoth(guess.lengthMm!) },
     { panel: "sex", value: guess.sex === "girl" ? "A girl" : "A boy" },
-    { panel: "name", value: guess.firstName! },
   ];
 
   const BOXES = ["drawn", "drawn-b", "drawn-c", "drawn-d"] as const;

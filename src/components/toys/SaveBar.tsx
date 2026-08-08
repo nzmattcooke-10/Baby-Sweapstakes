@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import type { ActionResult } from "@/app/guess/actions";
 import { Icon } from "@/components/zine/Icon";
 
@@ -26,17 +26,26 @@ export function SaveBar({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  // Holds the button on "Saved!" for a beat after a successful write, so the
+  // save visibly lands before the panel closes and returns to the guess hub.
+  const [saved, setSaved] = useState(false);
+
+  // Navigate from an effect once the save has landed, rather than from inside
+  // the transition. A stray `router.refresh()` next to the push used to re-fetch
+  // the panel route and cancel the navigation, stranding the user on the page.
+  useEffect(() => {
+    if (!saved) return;
+    const timer = setTimeout(() => router.push("/guess"), 650);
+    return () => clearTimeout(timer);
+  }, [saved, router]);
 
   function submit() {
+    if (pending || saved) return;
     setError(null);
     startTransition(async () => {
       const result = await onSave();
-      if (result.ok) {
-        router.push("/guess");
-        router.refresh();
-      } else {
-        setError(result.error);
-      }
+      if (result.ok) setSaved(true);
+      else setError(result.error);
     });
   }
 
@@ -57,14 +66,14 @@ export function SaveBar({
       <button
         type="button"
         onClick={submit}
-        disabled={disabled || pending}
+        disabled={(disabled && !saved) || pending}
         className="filled marker-caps flex min-h-[58px] w-full max-w-sm items-center justify-center gap-2 px-6 text-xl"
       >
-        {pending ? "Saving…" : label}
-        {!pending && <Icon name="tick" size={26} strokeWidth={2.6} />}
+        {saved ? "Saved!" : pending ? "Saving…" : label}
+        {(saved || !pending) && <Icon name="tick" size={26} strokeWidth={2.6} />}
       </button>
 
-      {disabled && disabledHint && (
+      {disabled && !saved && disabledHint && (
         <p className="text-center text-base text-ink-soft">{disabledHint}</p>
       )}
     </div>

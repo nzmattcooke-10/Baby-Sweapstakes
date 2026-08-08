@@ -105,15 +105,6 @@ export async function saveSex(sex: "boy" | "girl"): Promise<ActionResult> {
   return patchGuess({ sex });
 }
 
-export async function saveName(firstName: string): Promise<ActionResult> {
-  const name = firstName.trim();
-  if (name.length === 0) return { ok: false, error: "Give the baby a name!" };
-  if (name.length > 40) {
-    return { ok: false, error: "That's a very long name — 40 characters max." };
-  }
-  return patchGuess({ firstName: name });
-}
-
 /* ------------------------------------------------------------- commit -- */
 
 /**

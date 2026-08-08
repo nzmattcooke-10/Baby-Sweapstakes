@@ -45,8 +45,7 @@ export default async function ResultsPage() {
       result.actualMinuteOfDay === null &&
       result.actualWeightGrams === null &&
       result.actualLengthMm === null &&
-      result.actualSex === null &&
-      result.actualName === null);
+      result.actualSex === null);
 
   if (nothingKnown) {
     return (
@@ -63,7 +62,7 @@ export default async function ResultsPage() {
   }
 
   const rows = (await listParticipantGuesses()).map(
-    ({ participant: person, guess, credit }) => ({
+    ({ participant: person, guess }) => ({
       id: person.id,
       displayName: person.displayName,
       avatarKey: person.avatarKey,
@@ -74,8 +73,6 @@ export default async function ResultsPage() {
       weightGrams: guess.weightGrams,
       lengthMm: guess.lengthMm,
       sex: guess.sex,
-      firstName: guess.firstName,
-      credit: credit?.awardedPoints ?? null,
     }),
   );
 
@@ -90,9 +87,7 @@ export default async function ResultsPage() {
       weightGrams: row.weightGrams,
       lengthMm: row.lengthMm,
       sex: row.sex,
-      firstName: row.firstName,
     },
-    nameCredit: row.credit,
   }));
 
   const board = scoreAll(inputs, result, sweepstake.scoringWeights);
@@ -108,7 +103,6 @@ export default async function ResultsPage() {
     actualRows.push(["Measuring", formatLengthBoth(result.actualLengthMm)]);
   if (result.actualSex)
     actualRows.push(["It's", result.actualSex === "girl" ? "a girl" : "a boy"]);
-  if (result.actualName) actualRows.push(["Named", result.actualName]);
 
   const pending = CATEGORY_ORDER.filter(
     (category) => !board.scoredCategories.includes(category),

@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import type { Remark } from "@/lib/commentary";
+import { scrollFieldIntoView } from "@/lib/scroll-into-view";
 
 /**
  * The shared chassis for every slider-driven toy: illustration on top, real
@@ -163,6 +164,7 @@ export function ToyShell({
           className="field w-28 px-3 py-2 text-right text-lg tabular-nums"
           value={shown}
           onChange={(e) => setDraft(e.target.value)}
+          onFocus={scrollFieldIntoView}
           onBlur={commitDraft}
           onKeyDown={(e) => {
             if (e.key === "Enter") {

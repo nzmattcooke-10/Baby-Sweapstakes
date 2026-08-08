@@ -5,7 +5,6 @@ import { Avatar } from "@/components/avatars/Avatar";
 import {
   changeAdminPin,
   closeEntries,
-  releaseNames,
   reopenEntries,
   resetPin,
   saveResult,
@@ -104,31 +103,6 @@ export function AdminPanel({
       )}
 
       <ResultForm result={result} pending={pending} run={run} />
-
-      <Section title="Name guesses">
-        {sweepstake.namesReleasedAt ? (
-          <p className="text-base text-ink-soft">
-            Released. Everyone can see the name guesses.
-          </p>
-        ) : (
-          <>
-            <p className="mb-3 text-base text-ink-soft">
-              Still sealed. Only release these once the baby&rsquo;s name has been
-              announced — and note that you&rsquo;ll see them all yourself the
-              moment you do. If you&rsquo;d rather stay uninfluenced, hand this
-              job to someone else.
-            </p>
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() => run(releaseNames, "Name guesses are out.")}
-              className="drawn-c marker-caps min-h-[52px] w-full px-4 text-xl"
-            >
-              Release the name guesses
-            </button>
-          </>
-        )}
-      </Section>
 
       <Section title={`The pot — ${formatMoney(pot, sweepstake.currency)}`}>
         <p className="mb-3 text-sm text-ink-soft">
@@ -276,7 +250,6 @@ function ResultForm({
     result?.actualLengthMm != null ? (result.actualLengthMm / 10).toFixed(1) : "",
   );
   const [sex, setSex] = useState<"" | "boy" | "girl">(result?.actualSex ?? "");
-  const [name, setName] = useState(result?.actualName ?? "");
 
   function submit() {
     const [h, m] = time.split(":").map(Number);
@@ -288,7 +261,6 @@ function ResultForm({
           actualWeightGrams: kg ? Math.round(Number(kg) * 1000) : null,
           actualLengthMm: cm ? Math.round(Number(cm) * 10) : null,
           actualSex: sex || null,
-          actualName: name.trim() || null,
         }),
       "Result saved — the scores are live.",
     );
@@ -372,15 +344,6 @@ function ResultForm({
             ))}
           </div>
         </fieldset>
-
-        <label className="flex flex-col gap-1 text-sm">
-          First name (once it&rsquo;s decided)
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="min-h-[48px] field px-3 text-lg"
-          />
-        </label>
 
         <button
           type="button"

@@ -14,7 +14,6 @@ const perfectGuess: GuessValues = {
   weightGrams: 3400,
   lengthMm: 500,
   sex: "girl",
-  firstName: "Ava",
 };
 
 const fullActual: ActualValues = {
@@ -23,7 +22,6 @@ const fullActual: ActualValues = {
   actualWeightGrams: 3400,
   actualLengthMm: 500,
   actualSex: "girl",
-  actualName: "Ava",
 };
 
 const emptyActual: ActualValues = {
@@ -32,7 +30,6 @@ const emptyActual: ActualValues = {
   actualWeightGrams: null,
   actualLengthMm: null,
   actualSex: null,
-  actualName: null,
 };
 
 describe("name normalisation", () => {
@@ -54,7 +51,6 @@ describe("scoreCategory", () => {
     expect(scoreCategory("weight", perfectGuess, fullActual, W).points).toBe(25);
     expect(scoreCategory("length", perfectGuess, fullActual, W).points).toBe(10);
     expect(scoreCategory("sex", perfectGuess, fullActual, W).points).toBe(10);
-    expect(scoreCategory("name", perfectGuess, fullActual, W).points).toBe(20);
   });
 
   it("falls off linearly with distance", () => {
@@ -82,7 +78,7 @@ describe("scoreCategory", () => {
   });
 
   it("returns null — not zero — when the host has not entered the actual", () => {
-    for (const c of ["date", "time", "weight", "length", "sex", "name"] as const) {
+    for (const c of ["date", "time", "weight", "length", "sex"] as const) {
       expect(scoreCategory(c, perfectGuess, emptyActual, W).points).toBeNull();
     }
   });
@@ -93,11 +89,6 @@ describe("scoreCategory", () => {
     expect(score.points).toBe(0);
     expect(score.distance).toBe(Infinity);
   });
-
-  it("does not credit a near-miss name", () => {
-    const close = { ...perfectGuess, firstName: "Avaa" };
-    expect(scoreCategory("name", close, fullActual, W).points).toBe(0);
-  });
 });
 
 describe("scoreAll", () => {
@@ -105,7 +96,7 @@ describe("scoreAll", () => {
     { participantId: "perfect", guess: perfectGuess },
     {
       participantId: "closeish",
-      guess: { ...perfectGuess, birthDate: "2026-08-16", firstName: "Mia" },
+      guess: { ...perfectGuess, birthDate: "2026-08-16" },
     },
     {
       participantId: "wayOff",
@@ -115,7 +106,6 @@ describe("scoreAll", () => {
         weightGrams: 4500,
         lengthMm: 560,
         sex: "boy" as const,
-        firstName: "Rex",
       },
     },
   ];
@@ -123,7 +113,7 @@ describe("scoreAll", () => {
   it("ranks by total, best first", () => {
     const board = scoreAll(inputs, fullActual, W);
     expect(board.participants[0].participantId).toBe("perfect");
-    expect(board.participants[0].total).toBe(110);
+    expect(board.participants[0].total).toBe(90);
     expect(board.participants[0].rank).toBe(1);
     expect(board.participants.at(-1)?.participantId).toBe("wayOff");
   });
@@ -146,7 +136,6 @@ describe("scoreAll", () => {
   it("names the closest guess in each category", () => {
     const board = scoreAll(inputs, fullActual, W);
     expect(board.closest.date).toEqual(["perfect"]);
-    expect(board.closest.name).toEqual(["perfect"]);
     // All three guessed 3400g except wayOff, so two tie on weight.
     expect(board.closest.weight.sort()).toEqual(["closeish", "perfect"]);
   });
@@ -163,26 +152,6 @@ describe("scoreAll", () => {
     expect(board.participants[0].total).toBe(45);
     expect(board.participants[0].categories.weight.points).toBeNull();
     expect(board.closest.weight).toEqual([]);
-  });
-
-  it("lets a host-awarded name credit override the automatic result", () => {
-    const board = scoreAll(
-      [
-        { participantId: "exact", guess: perfectGuess },
-        {
-          participantId: "closeEnough",
-          guess: { ...perfectGuess, firstName: "Avah" },
-          nameCredit: 10,
-        },
-      ],
-      fullActual,
-      W,
-    );
-    const credited = board.participants.find(
-      (p) => p.participantId === "closeEnough",
-    );
-    expect(credited?.categories.name.points).toBe(10);
-    expect(credited?.total).toBe(100);
   });
 
   it("keeps a non-guesser out of the closest-guess running", () => {

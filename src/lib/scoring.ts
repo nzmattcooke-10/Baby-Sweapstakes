@@ -16,7 +16,7 @@ import { daysBetween } from "./window";
  *   special-casing them at every call site.
  */
 
-export type CategoryKey = "date" | "weight" | "time" | "name" | "sex" | "length";
+export type CategoryKey = "date" | "weight" | "time" | "sex" | "length";
 
 export const CATEGORY_ORDER: CategoryKey[] = [
   "date",
@@ -24,7 +24,6 @@ export const CATEGORY_ORDER: CategoryKey[] = [
   "weight",
   "length",
   "sex",
-  "name",
 ];
 
 export const CATEGORY_LABEL: Record<CategoryKey, string> = {
@@ -33,7 +32,6 @@ export const CATEGORY_LABEL: Record<CategoryKey, string> = {
   weight: "Weight",
   length: "Length",
   sex: "Boy or girl",
-  name: "Name",
 };
 
 export type GuessValues = {
@@ -42,7 +40,6 @@ export type GuessValues = {
   weightGrams: number | null;
   lengthMm: number | null;
   sex: "boy" | "girl" | null;
-  firstName: string | null;
 };
 
 export type ActualValues = {
@@ -51,7 +48,6 @@ export type ActualValues = {
   actualWeightGrams: number | null;
   actualLengthMm: number | null;
   actualSex: "boy" | "girl" | null;
-  actualName: string | null;
 };
 
 export type CategoryScore = {
@@ -148,25 +144,12 @@ export function scoreCategory(
       const hit = guess.sex === actual.actualSex;
       return { points: hit ? weights.sex.max : 0, distance: hit ? 0 : 1 };
     }
-
-    case "name": {
-      if (actual.actualName === null) return { points: null, distance: Infinity };
-      if (guess.firstName === null) return { points: 0, distance: Infinity };
-      // Exact match only. Automated similarity would confidently rule on
-      // Isabelle vs Isabella and irritate somebody either way — the host awards
-      // close-enough credit by hand instead (see nameCredit).
-      const hit =
-        normaliseName(guess.firstName) === normaliseName(actual.actualName);
-      return { points: hit ? weights.name.max : 0, distance: hit ? 0 : 1 };
-    }
   }
 }
 
 export type ParticipantInput = {
   participantId: string;
   guess: GuessValues;
-  /** Host-awarded "close enough" points, overriding the name category. */
-  nameCredit?: number | null;
 };
 
 export type ScoredParticipant = {
@@ -196,19 +179,7 @@ export function scoreAll(
     let total = 0;
 
     for (const category of CATEGORY_ORDER) {
-      let score = scoreCategory(category, input.guess, actual, weights);
-
-      // A manual credit stands in for the automatic name result entirely, so
-      // the host can say "Isabelle is close enough to Isabella" and have it
-      // flow through the leaderboard.
-      if (
-        category === "name" &&
-        input.nameCredit != null &&
-        score.points !== null
-      ) {
-        score = { points: input.nameCredit, distance: score.distance };
-      }
-
+      const score = scoreCategory(category, input.guess, actual, weights);
       categories[category] = score;
       if (score.points !== null) total += score.points;
     }

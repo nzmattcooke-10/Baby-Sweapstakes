@@ -14,6 +14,10 @@ export const viewport: Viewport = {
   themeColor: "#fff8ec",
   // Never block zoom — pinch-zoom is how a lot of people read a phone screen.
   maximumScale: 5,
+  // When the on-screen keyboard opens, shrink the layout viewport instead of
+  // letting the keyboard overlap the page. Paired with the focus-scroll in the
+  // inputs, this keeps the field a tapped text box is in visible while typing.
+  interactiveWidget: "resizes-content",
 };
 
 /**

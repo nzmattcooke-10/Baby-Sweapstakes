@@ -17,10 +17,7 @@ export async function GET() {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
 
-  const view = await getBoardView(
-    user.sweepstake,
-    user.participant.committedAt !== null,
-  );
+  const view = await getBoardView(user.participant.committedAt !== null);
 
   return NextResponse.json(view, {
     headers: { "Cache-Control": "no-store" },

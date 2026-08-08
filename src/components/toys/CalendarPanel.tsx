@@ -102,6 +102,10 @@ export function CalendarPanel({
                       day.isPast
                         ? "cursor-not-allowed border-transparent text-ink-soft opacity-40"
                         : "border-ink"
+                    } ${
+                      // The due date is the anchor of the whole calendar, so its
+                      // cell sits a touch larger and above its neighbours.
+                      day.isDueDate ? "z-10 scale-[1.12]" : ""
                     }`}
                     style={{
                       borderRadius:
@@ -132,7 +136,12 @@ export function CalendarPanel({
                         aria-hidden="true"
                         className="absolute bottom-1 flex items-center gap-0.5 text-[10px] leading-none"
                       >
-                        <Icon name="star" size={10} strokeWidth={2.8} />
+                        <Icon
+                          name="star"
+                          size={11}
+                          strokeWidth={2.4}
+                          className="[fill:var(--hl-yellow)]"
+                        />
                         due
                       </span>
                     )}

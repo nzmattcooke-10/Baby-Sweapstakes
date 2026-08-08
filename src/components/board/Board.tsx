@@ -6,7 +6,6 @@ import { formatLengthBoth, formatTime, formatWeightBoth } from "@/lib/units";
 import type { CalendarWindow } from "@/lib/window";
 import { AxisPanel } from "./AxisPanel";
 import { CalendarBoard } from "./CalendarBoard";
-import { NameBoard, NameBoardLocked } from "./NameBoard";
 import { SexBoard } from "./SexBoard";
 
 /**
@@ -25,11 +24,9 @@ type Selection = { panel: string; participantId: string } | null;
 export function Board({
   entries,
   window: win,
-  namesReleased,
 }: {
   entries: BoardEntry[];
   window: CalendarWindow;
-  namesReleased: boolean;
 }) {
   const [selection, setSelection] = useState<Selection>(null);
 
@@ -125,12 +122,6 @@ export function Board({
       />
 
       <SexBoard entries={entries} {...panelProps("sex")} />
-
-      {namesReleased ? (
-        <NameBoard entries={entries} />
-      ) : (
-        <NameBoardLocked count={entries.length} />
-      )}
     </div>
   );
 }

@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import {
   saveActualResult,
-  setNameCredit,
   updateParticipant,
   updateSweepstake,
 } from "@/db";
@@ -62,34 +61,22 @@ export async function reopenEntries(): Promise<AdminResult> {
   return { ok: true };
 }
 
-/**
- * Separate from announcing the birth, because families typically announce a
- * name days later. Until this runs, name guesses are never sent to anyone.
- */
-export async function releaseNames(): Promise<AdminResult> {
-  await requireAdmin();
-  await updateSweepstake({ namesReleasedAt: new Date() });
-  revalidatePath("/", "layout");
-  return { ok: true };
-}
-
 export type ResultInput = {
   actualDate: string | null;
   actualMinuteOfDay: number | null;
   actualWeightGrams: number | null;
   actualLengthMm: number | null;
   actualSex: "boy" | "girl" | null;
-  actualName: string | null;
 };
 
 /**
  * Saves whatever is known so far. Every field is optional on purpose: the date
- * and time are known hours before an official weight, and the name days after
- * that, so the reveal starts on the day rather than waiting for a full set.
+ * and time are known hours before an official weight, so the reveal starts on
+ * the day rather than waiting for a full set.
  */
 export async function saveResult(input: ResultInput): Promise<AdminResult> {
   await requireAdmin();
-  await saveActualResult(input);
+  await saveActualResult({ ...input, actualName: null });
 
   revalidatePath("/", "layout");
   return { ok: true };
@@ -124,21 +111,6 @@ export async function resetPin(
     lockedUntil: null,
   });
   revalidatePath("/admin");
-  return { ok: true };
-}
-
-/**
- * The human override for near-miss names. Automated similarity would rule on
- * Isabelle vs Isabella with total confidence and annoy somebody either way.
- */
-export async function awardNameCredit(
-  participantId: string,
-  points: number,
-): Promise<AdminResult> {
-  await requireAdmin();
-  await setNameCredit(participantId, points);
-
-  revalidatePath("/results");
   return { ok: true };
 }
 

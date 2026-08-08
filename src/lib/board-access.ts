@@ -1,7 +1,6 @@
 import "server-only";
 
 import { listParticipantGuesses } from "@/db";
-import type { Sweepstake } from "@/db/schema";
 
 /**
  * The single place the visibility rules are enforced.
@@ -11,16 +10,11 @@ import type { Sweepstake } from "@/db/schema";
  * that fetched everything and hid it with CSS would be readable by any relative
  * who opened devtools, which would quietly defeat the entire game.
  *
- * Four states:
+ * Three states:
  *
  *   drafting   — nothing about anyone else, just the locked-in count
  *   committed  — everyone's date, time, weight, length and sex
- *   names out  — ...plus everyone's name guesses
  *   revealed   — ...plus the real result and the leaderboard
- *
- * Note `firstName` is an optional property. Before names are released it is
- * *absent*, not null or blank — there is no field to accidentally render, log,
- * or serialise.
  */
 
 export type BoardEntry = {
@@ -33,8 +27,6 @@ export type BoardEntry = {
   weightGrams: number | null;
   lengthMm: number | null;
   sex: "boy" | "girl" | null;
-  /** Present only once the host has released names. */
-  firstName?: string;
 };
 
 export type BoardView =
@@ -47,7 +39,6 @@ export type BoardView =
   | {
       state: "open";
       entries: BoardEntry[];
-      namesReleased: boolean;
       committed: number;
       total: number;
       /** Participants who never got their guesses in. */
@@ -55,7 +46,6 @@ export type BoardView =
     };
 
 export async function getBoardView(
-  sweepstake: Sweepstake,
   viewerHasCommitted: boolean,
 ): Promise<BoardView> {
   const rows = (await listParticipantGuesses()).map(({ participant, guess }) => ({
@@ -69,7 +59,6 @@ export async function getBoardView(
     weightGrams: guess.weightGrams,
     lengthMm: guess.lengthMm,
     sex: guess.sex,
-    firstName: guess.firstName,
   }));
 
   const committedRows = rows.filter((r) => r.committedAt !== null);
@@ -81,30 +70,21 @@ export async function getBoardView(
     return { state: "locked", committed, total, reason: "not-committed" };
   }
 
-  const namesReleased = sweepstake.namesReleasedAt !== null;
-
-  const entries: BoardEntry[] = committedRows.map((row) => {
-    const entry: BoardEntry = {
-      participantId: row.participantId,
-      displayName: row.displayName,
-      avatarKey: row.avatarKey,
-      accentColor: row.accentColor,
-      birthDate: row.birthDate,
-      birthMinuteOfDay: row.birthMinuteOfDay,
-      weightGrams: row.weightGrams,
-      lengthMm: row.lengthMm,
-      sex: row.sex,
-    };
-    // Built by addition, never by deletion: forgetting a `delete` is a silent
-    // leak, whereas forgetting to add a field is a visibly missing name.
-    if (namesReleased && row.firstName) entry.firstName = row.firstName;
-    return entry;
-  });
+  const entries: BoardEntry[] = committedRows.map((row) => ({
+    participantId: row.participantId,
+    displayName: row.displayName,
+    avatarKey: row.avatarKey,
+    accentColor: row.accentColor,
+    birthDate: row.birthDate,
+    birthMinuteOfDay: row.birthMinuteOfDay,
+    weightGrams: row.weightGrams,
+    lengthMm: row.lengthMm,
+    sex: row.sex,
+  }));
 
   return {
     state: "open",
     entries,
-    namesReleased,
     committed,
     total,
     missing: rows

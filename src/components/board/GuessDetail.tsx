@@ -3,7 +3,6 @@
 import { useEffect, useRef } from "react";
 import { Avatar } from "@/components/avatars/Avatar";
 import type { BoardEntry } from "@/lib/board-access";
-import { Icon } from "@/components/zine/Icon";
 import { formatLengthBoth, formatTime, formatWeightBoth } from "@/lib/units";
 import { formatLongDate } from "@/lib/window";
 
@@ -43,8 +42,6 @@ export function GuessDetail({
     ],
   ];
 
-  if (entry.firstName) rows.push(["Name", entry.firstName]);
-
   return (
     <div
       ref={ref}
@@ -77,13 +74,6 @@ export function GuessDetail({
           </div>
         ))}
       </dl>
-
-      {!entry.firstName && (
-        <p className="mt-3 flex items-center gap-2 text-sm text-ink-soft">
-          <Icon name="sealed" size={18} className="shrink-0" />
-          Name guess stays secret until the baby&rsquo;s name is announced.
-        </p>
-      )}
     </div>
   );
 }

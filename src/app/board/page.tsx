@@ -14,10 +14,7 @@ export default async function BoardPage(props: {
   const { justCommitted } = await props.searchParams;
   const { participant, sweepstake } = await requireUser();
 
-  const view = await getBoardView(
-    sweepstake,
-    participant.committedAt !== null,
-  );
+  const view = await getBoardView(participant.committedAt !== null);
   const win = await getWindow(sweepstake);
   const daysToGo = daysBetween(todayISO(), sweepstake.dueDate);
 
@@ -60,11 +57,7 @@ export default async function BoardPage(props: {
         <LockedBoard committed={view.committed} total={view.total} />
       ) : (
         <>
-          <Board
-            entries={view.entries}
-            window={win}
-            namesReleased={view.namesReleased}
-          />
+          <Board entries={view.entries} window={win} />
 
           {view.missing.length > 0 && (
             <section className="drawn-c px-4 py-4">

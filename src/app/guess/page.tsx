@@ -16,7 +16,7 @@ import { formatShortDate } from "@/lib/window";
 import { SignOutButton } from "@/components/SignOutButton";
 
 /**
- * The hub. Six panels, each ticked as it's filled, and the commit button only
+ * The hub. Five panels, each ticked as it's filled, and the commit button only
  * once every one of them is done.
  */
 export default async function GuessHubPage() {
@@ -51,8 +51,6 @@ export default async function GuessHubPage() {
         return guess.lengthMm !== null ? formatLength(guess.lengthMm) : null;
       case "sex":
         return guess.sex === "girl" ? "A girl" : guess.sex === "boy" ? "A boy" : null;
-      case "name":
-        return guess.firstName;
     }
   }
 
@@ -171,7 +169,7 @@ export default async function GuessHubPage() {
         </Link>
       ) : (
         <p className="text-center text-lg">
-          Fill in all six and you can{" "}
+          Fill in all five and you can{" "}
           <span className="hl hl-teal">lock them in</span> — then the board opens
           up.
         </p>
