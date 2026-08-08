@@ -6,13 +6,15 @@ import { sites } from "./build/sites-vite-plugin";
 const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
   "00000000-0000-4000-8000-000000000000";
 
-// In production (Cloudflare Workers Build) these come from build-time env vars
-// pointing at the real D1 database. Locally they fall back to placeholders,
-// which is all miniflare needs — it keys its local D1 by binding name, not id.
+// The real Cloudflare D1 database this Worker deploys against. A build-time env
+// var can still override it, but the committed default is the production id so
+// deploys work without any dashboard configuration. The id is not a secret — it
+// only identifies the database within the owning Cloudflare account.
+const PRODUCTION_D1_DATABASE_ID = "0c1203f5-6a9d-440d-9b7f-6fa2a91c5951";
 const D1_DATABASE_ID =
-  process.env.CF_D1_DATABASE_ID ?? SITE_CREATOR_PLACEHOLDER_DATABASE_ID;
+  process.env.CF_D1_DATABASE_ID ?? PRODUCTION_D1_DATABASE_ID;
 const D1_DATABASE_NAME =
-  process.env.CF_D1_DATABASE_NAME ?? "lewbner-baby-local";
+  process.env.CF_D1_DATABASE_NAME ?? "baby-sweepstakes";
 
 const { d1, r2 } = hostingConfig;
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
