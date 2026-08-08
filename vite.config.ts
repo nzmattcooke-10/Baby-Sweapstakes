@@ -3,9 +3,6 @@ import { defineConfig } from "vite";
 import hostingConfig from "./.openai/hosting.json";
 import { sites } from "./build/sites-vite-plugin";
 
-const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
-  "00000000-0000-4000-8000-000000000000";
-
 // The real Cloudflare D1 database this Worker deploys against. A build-time env
 // var can still override it, but the committed default is the production id so
 // deploys work without any dashboard configuration. The id is not a secret — it
