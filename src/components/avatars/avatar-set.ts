@@ -1,5 +1,5 @@
 /**
- * The 24 pickable characters.
+ * The 31 pickable characters — 25 people and 6 animals.
  *
  * Each one carries a `label` describing what it looks like. That isn't
  * decoration — it's how somebody using a screen reader picks an avatar at all.
@@ -29,6 +29,14 @@ export type Accessory =
   | "freckles"
   | "earrings";
 
+/**
+ * Animal characters reuse the human scaffold — same disc, same head, same
+ * drawn eyes — and swap the hair layers for a species. `hair`/`accessory` are
+ * ignored when `animal` is set; `skin` is the fur base and `hairColor` the ear
+ * and marking tone.
+ */
+export type AnimalKind = "cat" | "dog" | "bear" | "bunny" | "fox" | "panda";
+
 export type AvatarDef = {
   key: string;
   label: string;
@@ -36,6 +44,7 @@ export type AvatarDef = {
   hairColor: string;
   hair: HairStyle;
   accessory: Accessory;
+  animal?: AnimalKind;
 };
 
 const SKIN = {
@@ -56,6 +65,22 @@ const HAIR = {
   grey: "#B0AAA4",
   white: "#E2DDD7",
   red: "#B4451F",
+} as const;
+
+/** Fur base tones and the darker ear/marking tone that pairs with each. */
+const FUR = {
+  cat: "#B9B2A8",
+  catMark: "#6E675E",
+  dog: "#CB9A5F",
+  dogMark: "#7A4E2D",
+  bear: "#9B6A44",
+  bearMark: "#6B4227",
+  bunny: "#EFE7DC",
+  bunnyMark: "#B7AEA3",
+  fox: "#D26A34",
+  foxMark: "#A2451E",
+  panda: "#F2EEE8",
+  pandaMark: "#242424",
 } as const;
 
 export const AVATARS: AvatarDef[] = [
@@ -83,6 +108,14 @@ export const AVATARS: AvatarDef[] = [
   { key: "a22", label: "Baseball cap with a moustache", skin: SKIN.fair, hairColor: HAIR.darkBrown, hair: "cap", accessory: "moustache" },
   { key: "a23", label: "Bald with a white beard", skin: SKIN.fair, hairColor: HAIR.white, hair: "bald", accessory: "beard" },
   { key: "a24", label: "Bald with round glasses", skin: SKIN.olive, hairColor: HAIR.grey, hair: "bald", accessory: "roundGlasses" },
+  { key: "a25", label: "Older man with grey hair and glasses", skin: SKIN.fair, hairColor: HAIR.grey, hair: "short", accessory: "glasses" },
+
+  { key: "a26", label: "Cat", skin: FUR.cat, hairColor: FUR.catMark, hair: "bald", accessory: "none", animal: "cat" },
+  { key: "a27", label: "Dog", skin: FUR.dog, hairColor: FUR.dogMark, hair: "bald", accessory: "none", animal: "dog" },
+  { key: "a28", label: "Bear", skin: FUR.bear, hairColor: FUR.bearMark, hair: "bald", accessory: "none", animal: "bear" },
+  { key: "a29", label: "Bunny", skin: FUR.bunny, hairColor: FUR.bunnyMark, hair: "bald", accessory: "none", animal: "bunny" },
+  { key: "a30", label: "Fox", skin: FUR.fox, hairColor: FUR.foxMark, hair: "bald", accessory: "none", animal: "fox" },
+  { key: "a31", label: "Panda", skin: FUR.panda, hairColor: FUR.pandaMark, hair: "bald", accessory: "none", animal: "panda" },
 ];
 
 export const AVATAR_BY_KEY = new Map(AVATARS.map((a) => [a.key, a]));

@@ -27,6 +27,8 @@ import { getAvatar, resolveAccent, type AvatarDef } from "./avatar-set";
 const INK = "#111111";
 /** Outline weight, matched to the icon set and the baby illustration. */
 const LINE = 1.9;
+/** Soft pink for animal noses and inner ears — the one hue the faces borrow. */
+const PINK = "#E38DA6";
 
 type Props = {
   avatarKey: string;
@@ -193,6 +195,199 @@ function Accessory({ def }: { def: AvatarDef }) {
   }
 }
 
+/**
+ * Everything that sits BEHIND the face fill: the species' ears, plus a few
+ * short fur strokes around the head. Drawing the texture here — before the
+ * opaque face is laid down — is deliberate: it tucks under the face and only
+ * shows at the silhouette, so the scribble frames the character instead of
+ * being scrawled across its features.
+ */
+function AnimalBack({ def }: { def: AvatarDef }) {
+  const fur = def.skin;
+  const mark = def.hairColor;
+  const ear = { stroke: INK, strokeWidth: LINE, strokeLinejoin: "round" as const };
+
+  let ears: React.ReactNode = null;
+  switch (def.animal) {
+    case "cat":
+      ears = (
+        <>
+          <path d="M19 24 L24 9 L31 22 Z" fill={fur} {...ear} />
+          <path d="M45 24 L40 9 L33 22 Z" fill={fur} {...ear} />
+          <path d="M22.5 21.5 L25 13.5 L28.5 21 Z" fill={PINK} />
+          <path d="M41.5 21.5 L39 13.5 L35.5 21 Z" fill={PINK} />
+        </>
+      );
+      break;
+    case "dog":
+      ears = (
+        <>
+          <path d="M17 27 C10 30 10 43 16 47 C21 45 21.5 36 22.5 30 Z" fill={mark} {...ear} />
+          <path d="M47 27 C54 30 54 43 48 47 C43 45 42.5 36 41.5 30 Z" fill={mark} {...ear} />
+        </>
+      );
+      break;
+    case "bear":
+      ears = (
+        <>
+          <circle cx="20" cy="19" r="6.6" fill={fur} stroke={INK} strokeWidth={LINE} />
+          <circle cx="44" cy="19" r="6.6" fill={fur} stroke={INK} strokeWidth={LINE} />
+          <circle cx="20" cy="19.5" r="3" fill={mark} />
+          <circle cx="44" cy="19.5" r="3" fill={mark} />
+        </>
+      );
+      break;
+    case "bunny":
+      ears = (
+        <>
+          <path d="M25 22 C22.5 8 25.5 2.5 27.5 2.5 C29.5 2.5 30 9 29.5 22 Z" fill={fur} {...ear} />
+          <path d="M39 22 C41.5 8 38.5 2.5 36.5 2.5 C34.5 2.5 34 9 34.5 22 Z" fill={fur} {...ear} />
+          <path d="M26.3 20 C25 10.5 27 6 27.7 6 C28.4 6 29 11 28.4 20 Z" fill={PINK} />
+          <path d="M37.7 20 C39 10.5 37 6 36.3 6 C35.6 6 35 11 35.6 20 Z" fill={PINK} />
+        </>
+      );
+      break;
+    case "fox":
+      ears = (
+        <>
+          <path d="M18 25 L21 7 L31 21 Z" fill={fur} {...ear} />
+          <path d="M46 25 L43 7 L33 21 Z" fill={fur} {...ear} />
+          <path d="M21 8 L23.5 16 L27 19 Z" fill={mark} />
+          <path d="M43 8 L40.5 16 L37 19 Z" fill={mark} />
+        </>
+      );
+      break;
+    case "panda":
+      ears = (
+        <>
+          <circle cx="20" cy="18.5" r="6.6" fill={mark} stroke={INK} strokeWidth={LINE} />
+          <circle cx="44" cy="18.5" r="6.6" fill={mark} stroke={INK} strokeWidth={LINE} />
+        </>
+      );
+      break;
+  }
+
+  return (
+    <>
+      {ears}
+      {/* Fur at the silhouette — mostly hidden by the face, peeking at the edges. */}
+      <g stroke={INK} strokeWidth={LINE * 0.7} strokeLinecap="round" opacity="0.5">
+        <path d="M18.5 30 l-3.2 -1.4" />
+        <path d="M17.5 36 l-3.4 0.2" />
+        <path d="M18.5 42 l-3.2 1.7" />
+        <path d="M45.5 30 l3.2 -1.4" />
+        <path d="M46.5 36 l3.4 0.2" />
+        <path d="M45.5 42 l3.2 1.7" />
+        <path d="M24 48 l-1.4 3.2" />
+        <path d="M40 48 l1.4 3.2" />
+      </g>
+    </>
+  );
+}
+
+/**
+ * Everything that sits ON the face: the muzzle, nose, mouth, whiskers and the
+ * eyes. Panda is the one that can't reuse the shared dark eyes — its black
+ * patches would swallow them — so it draws its own.
+ */
+function AnimalFront({ def, seed }: { def: AvatarDef; seed: string }) {
+  const mark = def.hairColor;
+  const mouth = (cx: number, top: number) => (
+    <path
+      d={`M${cx} ${top} L${cx} ${top + 2.2} M${cx} ${top + 2.2} C${cx - 2.4} ${top + 3.8} ${cx - 4} ${top + 2.8} ${cx - 4.6} ${top + 1.8} M${cx} ${top + 2.2} C${cx + 2.4} ${top + 3.8} ${cx + 4} ${top + 2.8} ${cx + 4.6} ${top + 1.8}`}
+      stroke={INK}
+      strokeWidth="1.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      fill="none"
+    />
+  );
+
+  const eye = (cx: number, cy: number, k: string) => (
+    <path
+      d={roughEllipse(cx, cy, 1.85, 2.35, `${seed}-${k}`, { wobble: 0.18, samples: 9 })}
+      fill={INK}
+    />
+  );
+
+  switch (def.animal) {
+    case "cat":
+      return (
+        <>
+          {eye(26.5, 34, "eyeL")}
+          {eye(37.6, 34.2, "eyeR")}
+          <path d="M29.8 37.4 L34.2 37.4 L32 40 Z" fill={PINK} stroke={INK} strokeWidth="0.7" strokeLinejoin="round" />
+          {mouth(32, 40)}
+          <g stroke={INK} strokeWidth="0.85" strokeLinecap="round" opacity="0.65">
+            <path d="M23 38 L14.5 36.5" />
+            <path d="M23 40 L14.5 41.5" />
+            <path d="M41 38 L49.5 36.5" />
+            <path d="M41 40 L49.5 41.5" />
+          </g>
+        </>
+      );
+    case "dog":
+      return (
+        <>
+          {eye(26.5, 34, "eyeL")}
+          {eye(37.6, 34.2, "eyeR")}
+          <ellipse cx="32" cy="42" rx="9" ry="7" fill="#F0E4D2" stroke={INK} strokeWidth="0.9" />
+          <ellipse cx="32" cy="39" rx="3.1" ry="2.4" fill={INK} />
+          {mouth(32, 41)}
+        </>
+      );
+    case "bear":
+      return (
+        <>
+          {eye(26.5, 33.6, "eyeL")}
+          {eye(37.6, 33.8, "eyeR")}
+          <ellipse cx="32" cy="41.5" rx="8" ry="6.5" fill="#D9BE9C" stroke={INK} strokeWidth="0.9" />
+          <ellipse cx="32" cy="38.6" rx="3.2" ry="2.5" fill={INK} />
+          {mouth(32, 41)}
+        </>
+      );
+    case "bunny":
+      return (
+        <>
+          {eye(26.5, 34, "eyeL")}
+          {eye(37.6, 34.2, "eyeR")}
+          <path d="M30.4 38 L33.6 38 L32 40 Z" fill={PINK} stroke={INK} strokeWidth="0.7" strokeLinejoin="round" />
+          {mouth(32, 40)}
+          <g fill="#FFFFFF" stroke={INK} strokeWidth="0.6">
+            <rect x="30.55" y="42.4" width="1.5" height="2.6" rx="0.5" />
+            <rect x="32.15" y="42.4" width="1.5" height="2.6" rx="0.5" />
+          </g>
+        </>
+      );
+    case "fox":
+      return (
+        <>
+          {/* White snout stripe up the middle of the face. */}
+          <path d="M32 32 C27.5 39 27 46 32 49.5 C37 46 36.5 39 32 32 Z" fill="#F6F0E7" stroke={INK} strokeWidth="0.8" strokeLinejoin="round" />
+          {eye(26.5, 33.8, "eyeL")}
+          {eye(37.6, 34, "eyeR")}
+          <ellipse cx="32" cy="41" rx="2.7" ry="2.1" fill={INK} />
+          {mouth(32, 42.5)}
+        </>
+      );
+    case "panda":
+      return (
+        <>
+          <ellipse cx="26" cy="34" rx="4.3" ry="5.6" fill={mark} transform="rotate(20 26 34)" />
+          <ellipse cx="38" cy="34" rx="4.3" ry="5.6" fill={mark} transform="rotate(-20 38 34)" />
+          <circle cx="26" cy="34.4" r="1.7" fill="#FFFFFF" />
+          <circle cx="38" cy="34.6" r="1.7" fill="#FFFFFF" />
+          <circle cx="26.2" cy="34.6" r="1.15" fill={INK} />
+          <circle cx="37.8" cy="34.8" r="1.15" fill={INK} />
+          <ellipse cx="32" cy="39" rx="2.9" ry="2.3" fill={mark} />
+          {mouth(32, 41)}
+        </>
+      );
+    default:
+      return null;
+  }
+}
+
 export function Avatar({
   avatarKey,
   accent,
@@ -307,85 +502,111 @@ export function Avatar({
         fill={def.skin}
       />
 
-      {/* Hair is outlined as a group. On the curly and braided styles this
-          also draws the seams between the individual curls, which is what a
-          hand would have done anyway. */}
-      <g stroke={INK} strokeWidth={LINE} strokeLinejoin="round">
-        <HairBack def={def} />
-      </g>
+      {def.animal ? (
+        <>
+          {/* Ears and fur go behind the face; the face is laid down opaque; the
+              muzzle, nose and eyes go on top. The scribble never fronts the
+              features. */}
+          <g stroke={INK} strokeWidth={LINE} strokeLinejoin="round" fill="none">
+            <AnimalBack def={def} />
+          </g>
+          <path d={face} fill={def.skin} />
+          <path
+            d={face}
+            fill="none"
+            stroke={INK}
+            strokeWidth={LINE}
+            strokeLinecap="round"
+          />
+          <AnimalFront def={def} seed={seed} />
+        </>
+      ) : (
+        <>
+          {/* Hair is outlined as a group. On the curly and braided styles this
+              also draws the seams between the individual curls, which is what a
+              hand would have done anyway. */}
+          <g stroke={INK} strokeWidth={LINE} strokeLinejoin="round">
+            <HairBack def={def} />
+          </g>
 
-      {/* Ears, deliberately not a matched pair — and drawn, not struck. */}
-      {[
-        { cx: 18, cy: 36, rx: 3.4, ry: 4, k: "earL" },
-        { cx: 46, cy: 36.6, rx: 3.2, ry: 3.8, k: "earR" },
-      ].map((e) => (
-        <path
-          key={e.k}
-          d={roughEllipse(e.cx, e.cy, e.rx, e.ry, `${seed}-${e.k}`, {
-            wobble: 0.12,
-            samples: 9,
-          })}
-          fill={def.skin}
-          stroke={INK}
-          strokeWidth={LINE * 0.8}
-        />
-      ))}
+          {/* Ears, deliberately not a matched pair — and drawn, not struck. */}
+          {[
+            { cx: 18, cy: 36, rx: 3.4, ry: 4, k: "earL" },
+            { cx: 46, cy: 36.6, rx: 3.2, ry: 3.8, k: "earR" },
+          ].map((e) => (
+            <path
+              key={e.k}
+              d={roughEllipse(e.cx, e.cy, e.rx, e.ry, `${seed}-${e.k}`, {
+                wobble: 0.12,
+                samples: 9,
+              })}
+              fill={def.skin}
+              stroke={INK}
+              strokeWidth={LINE * 0.8}
+            />
+          ))}
 
-      <path d={face} fill={def.skin} />
-      {/* Volume under the jaw, from pencil rather than from a gradient. */}
-      <g stroke={INK} strokeWidth="0.9" strokeLinecap="round" fill="none" opacity="0.34">
-        {hatchCircle(37, 40, 8.5, `${seed}-jaw`, { angle: -0.7, gap: 2.6 }).map(
-          (d, i) => (
-            <path key={i} d={d} />
-          ),
-        )}
-      </g>
-      <path
-        d={face}
-        fill="none"
-        stroke={INK}
-        strokeWidth={LINE}
-        strokeLinecap="round"
-      />
+          {/* Volume under the jaw, from pencil rather than from a gradient.
+              Drawn before the face fill so it sits *behind* the face: the
+              pencil reads along the neck and jawline instead of being scribbled
+              across the cheek. */}
+          <g stroke={INK} strokeWidth="0.9" strokeLinecap="round" fill="none" opacity="0.34">
+            {hatchCircle(37, 40, 8.5, `${seed}-jaw`, { angle: -0.7, gap: 2.6 }).map(
+              (d, i) => (
+                <path key={i} d={d} />
+              ),
+            )}
+          </g>
 
-      <g stroke={INK} strokeWidth={LINE} strokeLinejoin="round">
-        <HairFront def={def} />
-      </g>
+          <path d={face} fill={def.skin} />
+          <path
+            d={face}
+            fill="none"
+            stroke={INK}
+            strokeWidth={LINE}
+            strokeLinecap="round"
+          />
 
-      {/* Beard sits under the features — drawn after them it would swallow
-          the mouth, which is not the look anyone is going for. */}
-      {def.accessory === "beard" && (
-        <path
-          d="M18 36 C18 48 24 52 32 52 C40 52 46 48 46 36 C44 44 39 46 32 46 C25 46 20 44 18 36 Z"
-          fill={def.hairColor}
-          stroke={INK}
-          strokeWidth={LINE}
-          strokeLinejoin="round"
-        />
+          <g stroke={INK} strokeWidth={LINE} strokeLinejoin="round">
+            <HairFront def={def} />
+          </g>
+
+          {/* Beard sits under the features — drawn after them it would swallow
+              the mouth, which is not the look anyone is going for. */}
+          {def.accessory === "beard" && (
+            <path
+              d="M18 36 C18 48 24 52 32 52 C40 52 46 48 46 36 C44 44 39 46 32 46 C25 46 20 44 18 36 Z"
+              fill={def.hairColor}
+              stroke={INK}
+              strokeWidth={LINE}
+              strokeLinejoin="round"
+            />
+          )}
+
+          {/* Eyes are drawn, and drawn eyes are never a matched pair. */}
+          <path
+            d={roughEllipse(26.5, 34, 1.9, 2.4, `${seed}-eyeL`, {
+              wobble: 0.18,
+              samples: 9,
+            })}
+            fill={INK}
+          />
+          <path
+            d={roughEllipse(37.6, 34.4, 1.75, 2.25, `${seed}-eyeR`, {
+              wobble: 0.18,
+              samples: 9,
+            })}
+            fill={INK}
+          />
+          <path
+            d="M27 41.5 Q32.4 45.8 37 41.2"
+            stroke={INK}
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            fill="none"
+          />
+        </>
       )}
-
-      {/* Eyes are drawn, and drawn eyes are never a matched pair. */}
-      <path
-        d={roughEllipse(26.5, 34, 1.9, 2.4, `${seed}-eyeL`, {
-          wobble: 0.18,
-          samples: 9,
-        })}
-        fill={INK}
-      />
-      <path
-        d={roughEllipse(37.6, 34.4, 1.75, 2.25, `${seed}-eyeR`, {
-          wobble: 0.18,
-          samples: 9,
-        })}
-        fill={INK}
-      />
-      <path
-        d="M27 41.5 Q32.4 45.8 37 41.2"
-        stroke={INK}
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        fill="none"
-      />
 
       <Accessory def={def} />
     </svg>
