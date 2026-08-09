@@ -13,6 +13,29 @@
  * hydration mismatch. Never introduce Math.random here.
  */
 
+/**
+ * Every generator here is a pure function of its arguments, so identical calls
+ * produce byte-identical output. The board draws the same person's avatar once
+ * per panel — five-plus recomputes of the same paths per request — which on a
+ * free Cloudflare Worker was enough to blow the per-request CPU budget (Error
+ * 1102). Memoising by the full argument list collapses those repeats to one
+ * computation, and the cache stays warm across requests in a reused isolate.
+ *
+ * The cache is keyed on the seed *and* every numeric/option argument, so a
+ * differently-sized avatar (which changes hatch spacing) or a re-styled one
+ * (new seed) never reads a stale entry. It's bounded by the distinct avatars in
+ * a sweepstake — tens to low hundreds of small strings — so no eviction needed.
+ */
+const geometryCache = new Map<string, string | string[]>();
+
+function memo<T extends string | string[]>(key: string, compute: () => T): T {
+  const hit = geometryCache.get(key);
+  if (hit !== undefined) return hit as T;
+  const value = compute();
+  geometryCache.set(key, value);
+  return value;
+}
+
 /** Small, fast, deterministic PRNG (mulberry32) seeded from a string. */
 function makeRng(seed: string): () => number {
   let h = 2166136261 >>> 0;
@@ -85,24 +108,29 @@ export function roughCircle(
   seed: string,
   { wobble = 0.045, overshoot = 0.22, samples = 14 } = {},
 ): string {
-  const rng = makeRng(seed);
-  const amp = radius * wobble;
-  const points: Point[] = [];
-  const total = samples + Math.round(samples * overshoot);
-  // A drifting centre makes the loop lopsided rather than merely bumpy.
-  const driftX = jitter(rng, amp * 0.7);
-  const driftY = jitter(rng, amp * 0.7);
-  const start = rng() * Math.PI * 2;
+  return memo(
+    `c|${cx}|${cy}|${radius}|${wobble}|${overshoot}|${samples}|${seed}`,
+    () => {
+      const rng = makeRng(seed);
+      const amp = radius * wobble;
+      const points: Point[] = [];
+      const total = samples + Math.round(samples * overshoot);
+      // A drifting centre makes the loop lopsided rather than merely bumpy.
+      const driftX = jitter(rng, amp * 0.7);
+      const driftY = jitter(rng, amp * 0.7);
+      const start = rng() * Math.PI * 2;
 
-  for (let i = 0; i <= total; i++) {
-    const t = (i / samples) * Math.PI * 2 + start;
-    const rad = radius + jitter(rng, amp);
-    points.push([
-      cx + driftX * (i / total) + Math.cos(t) * rad,
-      cy + driftY * (i / total) + Math.sin(t) * rad,
-    ]);
-  }
-  return smoothPath(points, false);
+      for (let i = 0; i <= total; i++) {
+        const t = (i / samples) * Math.PI * 2 + start;
+        const rad = radius + jitter(rng, amp);
+        points.push([
+          cx + driftX * (i / total) + Math.cos(t) * rad,
+          cy + driftY * (i / total) + Math.sin(t) * rad,
+        ]);
+      }
+      return smoothPath(points, false);
+    },
+  );
 }
 
 /** An ellipse drawn the same way. */
@@ -114,19 +142,24 @@ export function roughEllipse(
   seed: string,
   { wobble = 0.05, overshoot = 0.2, samples = 14 } = {},
 ): string {
-  const rng = makeRng(seed);
-  const points: Point[] = [];
-  const total = samples + Math.round(samples * overshoot);
-  const start = rng() * Math.PI * 2;
+  return memo(
+    `e|${cx}|${cy}|${rx}|${ry}|${wobble}|${overshoot}|${samples}|${seed}`,
+    () => {
+      const rng = makeRng(seed);
+      const points: Point[] = [];
+      const total = samples + Math.round(samples * overshoot);
+      const start = rng() * Math.PI * 2;
 
-  for (let i = 0; i <= total; i++) {
-    const t = (i / samples) * Math.PI * 2 + start;
-    points.push([
-      cx + Math.cos(t) * (rx + jitter(rng, rx * wobble)),
-      cy + Math.sin(t) * (ry + jitter(rng, ry * wobble)),
-    ]);
-  }
-  return smoothPath(points, false);
+      for (let i = 0; i <= total; i++) {
+        const t = (i / samples) * Math.PI * 2 + start;
+        points.push([
+          cx + Math.cos(t) * (rx + jitter(rng, rx * wobble)),
+          cy + Math.sin(t) * (ry + jitter(rng, ry * wobble)),
+        ]);
+      }
+      return smoothPath(points, false);
+    },
+  );
 }
 
 /**
@@ -142,39 +175,44 @@ export function roughRect(
   seed: string,
   { wobble = 0.02, overshoot = 0.05, radius = 0 } = {},
 ): string[] {
-  const rng = makeRng(seed);
-  const amp = Math.min(w, h) * wobble;
-  const ox = Math.min(w * overshoot, 6);
-  const oy = Math.min(h * overshoot, 6);
-  const inset = radius * 0.6;
+  return memo(
+    `r|${x}|${y}|${w}|${h}|${wobble}|${overshoot}|${radius}|${seed}`,
+    () => {
+      const rng = makeRng(seed);
+      const amp = Math.min(w, h) * wobble;
+      const ox = Math.min(w * overshoot, 6);
+      const oy = Math.min(h * overshoot, 6);
+      const inset = radius * 0.6;
 
-  const edge = (a: Point, b: Point, over: number): string => {
-    const dx = b[0] - a[0];
-    const dy = b[1] - a[1];
-    const len = Math.hypot(dx, dy) || 1;
-    const ux = dx / len;
-    const uy = dy / len;
-    const from: Point = [a[0] - ux * over * rng(), a[1] - uy * over * rng()];
-    const to: Point = [b[0] + ux * over * rng(), b[1] + uy * over * rng()];
-    const points: Point[] = [from];
-    const steps = 3;
-    for (let i = 1; i < steps; i++) {
-      const t = i / steps;
-      points.push([
-        from[0] + (to[0] - from[0]) * t + jitter(rng, amp),
-        from[1] + (to[1] - from[1]) * t + jitter(rng, amp),
-      ]);
-    }
-    points.push(to);
-    return smoothPath(points, false);
-  };
+      const edge = (a: Point, b: Point, over: number): string => {
+        const dx = b[0] - a[0];
+        const dy = b[1] - a[1];
+        const len = Math.hypot(dx, dy) || 1;
+        const ux = dx / len;
+        const uy = dy / len;
+        const from: Point = [a[0] - ux * over * rng(), a[1] - uy * over * rng()];
+        const to: Point = [b[0] + ux * over * rng(), b[1] + uy * over * rng()];
+        const points: Point[] = [from];
+        const steps = 3;
+        for (let i = 1; i < steps; i++) {
+          const t = i / steps;
+          points.push([
+            from[0] + (to[0] - from[0]) * t + jitter(rng, amp),
+            from[1] + (to[1] - from[1]) * t + jitter(rng, amp),
+          ]);
+        }
+        points.push(to);
+        return smoothPath(points, false);
+      };
 
-  return [
-    edge([x + inset, y], [x + w - inset, y], ox),
-    edge([x + w, y + inset], [x + w, y + h - inset], oy),
-    edge([x + w - inset, y + h], [x + inset, y + h], ox),
-    edge([x, y + h - inset], [x, y + inset], oy),
-  ];
+      return [
+        edge([x + inset, y], [x + w - inset, y], ox),
+        edge([x + w, y + inset], [x + w, y + h - inset], oy),
+        edge([x + w - inset, y + h], [x + inset, y + h], ox),
+        edge([x, y + h - inset], [x, y + inset], oy),
+      ];
+    },
+  );
 }
 
 /**
@@ -191,36 +229,38 @@ export function roughRoundRect(
   seed: string,
   { wobble = 0.03 } = {},
 ): string {
-  const rng = makeRng(seed);
-  const rad = Math.min(radius, w / 2, h / 2);
-  const amp = Math.min(w, h) * wobble;
-  const points: Point[] = [];
+  return memo(`rr|${x}|${y}|${w}|${h}|${radius}|${wobble}|${seed}`, () => {
+    const rng = makeRng(seed);
+    const rad = Math.min(radius, w / 2, h / 2);
+    const amp = Math.min(w, h) * wobble;
+    const points: Point[] = [];
 
-  // Walk the outline corner by corner, sampling the arcs so the turns are as
-  // uneven as the straights.
-  const corners: Array<[number, number, number]> = [
-    [x + w - rad, y + rad, -Math.PI / 2],
-    [x + w - rad, y + h - rad, 0],
-    [x + rad, y + h - rad, Math.PI / 2],
-    [x + rad, y + rad, Math.PI],
-  ];
+    // Walk the outline corner by corner, sampling the arcs so the turns are as
+    // uneven as the straights.
+    const corners: Array<[number, number, number]> = [
+      [x + w - rad, y + rad, -Math.PI / 2],
+      [x + w - rad, y + h - rad, 0],
+      [x + rad, y + h - rad, Math.PI / 2],
+      [x + rad, y + rad, Math.PI],
+    ];
 
-  for (const [ccx, ccy, from] of corners) {
-    const steps = 4;
-    for (let i = 0; i <= steps; i++) {
-      const t = from + (Math.PI / 2) * (i / steps);
+    for (const [ccx, ccy, from] of corners) {
+      const steps = 4;
+      for (let i = 0; i <= steps; i++) {
+        const t = from + (Math.PI / 2) * (i / steps);
+        points.push([
+          ccx + Math.cos(t) * (rad + jitter(rng, amp)),
+          ccy + Math.sin(t) * (rad + jitter(rng, amp)),
+        ]);
+      }
+      // One sample along the straight that follows, so edges wander too.
       points.push([
-        ccx + Math.cos(t) * (rad + jitter(rng, amp)),
-        ccy + Math.sin(t) * (rad + jitter(rng, amp)),
+        ccx + Math.cos(from + Math.PI / 2) * rad + jitter(rng, amp),
+        ccy + Math.sin(from + Math.PI / 2) * rad + jitter(rng, amp),
       ]);
     }
-    // One sample along the straight that follows, so edges wander too.
-    points.push([
-      ccx + Math.cos(from + Math.PI / 2) * rad + jitter(rng, amp),
-      ccy + Math.sin(from + Math.PI / 2) * rad + jitter(rng, amp),
-    ]);
-  }
-  return `${smoothPath(points, true)} Z`;
+    return `${smoothPath(points, true)} Z`;
+  });
 }
 
 /* ------------------------------------------------------------- hatching -- */
@@ -289,21 +329,26 @@ export function hatchCircle(
   seed: string,
   { angle = -0.6, gap = 3.4, inset = 1.6 } = {},
 ): string[] {
-  const rng = makeRng(seed);
-  const rr = Math.max(0, radius - inset);
-  return hatchLines(
-    (o) => {
-      if (Math.abs(o) >= rr) return null;
-      const half = Math.sqrt(rr * rr - o * o);
-      return [-half, half];
+  return memo(
+    `hc|${cx}|${cy}|${radius}|${angle}|${gap}|${inset}|${seed}`,
+    () => {
+      const rng = makeRng(seed);
+      const rr = Math.max(0, radius - inset);
+      return hatchLines(
+        (o) => {
+          if (Math.abs(o) >= rr) return null;
+          const half = Math.sqrt(rr * rr - o * o);
+          return [-half, half];
+        },
+        -rr + gap * 0.5,
+        rr - gap * 0.5,
+        gap,
+        angle,
+        cx,
+        cy,
+        rng,
+      );
     },
-    -rr + gap * 0.5,
-    rr - gap * 0.5,
-    gap,
-    angle,
-    cx,
-    cy,
-    rng,
   );
 }
 
@@ -316,41 +361,46 @@ export function hatchRect(
   seed: string,
   { angle = -0.6, gap = 3.4, inset = 1.6 } = {},
 ): string[] {
-  const rng = makeRng(seed);
-  const x0 = x + inset;
-  const y0 = y + inset;
-  const x1 = x + w - inset;
-  const y1 = y + h - inset;
-  if (x1 <= x0 || y1 <= y0) return [];
-  const cx = (x0 + x1) / 2;
-  const cy = (y0 + y1) / 2;
-  const hw = (x1 - x0) / 2;
-  const hh = (y1 - y0) / 2;
-  const cos = Math.cos(angle);
-  const sin = Math.sin(angle);
+  return memo(
+    `hr|${x}|${y}|${w}|${h}|${angle}|${gap}|${inset}|${seed}`,
+    () => {
+      const rng = makeRng(seed);
+      const x0 = x + inset;
+      const y0 = y + inset;
+      const x1 = x + w - inset;
+      const y1 = y + h - inset;
+      if (x1 <= x0 || y1 <= y0) return [];
+      const cx = (x0 + x1) / 2;
+      const cy = (y0 + y1) / 2;
+      const hw = (x1 - x0) / 2;
+      const hh = (y1 - y0) / 2;
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
 
-  // Clip the line (in rotated space) against the rectangle, Liang–Barsky style.
-  const chord = (o: number): [number, number] | null => {
-    let tMin = -Infinity;
-    let tMax = Infinity;
-    const px = -sin * o;
-    const py = cos * o;
-    const clip = (dir: number, base: number, lo: number, hi: number) => {
-      if (Math.abs(dir) < 1e-9) return base >= lo && base <= hi;
-      const ta = (lo - base) / dir;
-      const tb = (hi - base) / dir;
-      tMin = Math.max(tMin, Math.min(ta, tb));
-      tMax = Math.min(tMax, Math.max(ta, tb));
-      return true;
-    };
-    if (!clip(cos, px, -hw, hw)) return null;
-    if (!clip(sin, py, -hh, hh)) return null;
-    if (tMax - tMin < 1) return null;
-    return [tMin, tMax];
-  };
+      // Clip the line (in rotated space) against the rect, Liang–Barsky style.
+      const chord = (o: number): [number, number] | null => {
+        let tMin = -Infinity;
+        let tMax = Infinity;
+        const px = -sin * o;
+        const py = cos * o;
+        const clip = (dir: number, base: number, lo: number, hi: number) => {
+          if (Math.abs(dir) < 1e-9) return base >= lo && base <= hi;
+          const ta = (lo - base) / dir;
+          const tb = (hi - base) / dir;
+          tMin = Math.max(tMin, Math.min(ta, tb));
+          tMax = Math.min(tMax, Math.max(ta, tb));
+          return true;
+        };
+        if (!clip(cos, px, -hw, hw)) return null;
+        if (!clip(sin, py, -hh, hh)) return null;
+        if (tMax - tMin < 1) return null;
+        return [tMin, tMax];
+      };
 
-  const reach = Math.hypot(hw, hh);
-  return hatchLines(chord, -reach, reach, gap, angle, cx, cy, rng);
+      const reach = Math.hypot(hw, hh);
+      return hatchLines(chord, -reach, reach, gap, angle, cx, cy, rng);
+    },
+  );
 }
 
 /**
@@ -366,23 +416,25 @@ export function scribbleShadow(
   seed: string,
   { strokes = 4 } = {},
 ): string[] {
-  const rng = makeRng(seed);
-  const out: string[] = [];
-  for (let i = 0; i < strokes; i++) {
-    const t = strokes === 1 ? 0.5 : i / (strokes - 1);
-    const spread = 1 - Math.abs(t - 0.5) * 1.1;
-    const y = cy - ry + t * ry * 2;
-    const half = rx * spread + jitter(rng, rx * 0.09);
-    const x0 = cx - half + jitter(rng, rx * 0.12);
-    const x1 = cx + half + jitter(rng, rx * 0.12);
-    const my = y + jitter(rng, ry * 0.35);
-    out.push(
-      `M ${r(x0)} ${r(y + jitter(rng, ry * 0.2))} Q ${r((x0 + x1) / 2)} ${r(
-        my,
-      )} ${r(x1)} ${r(y + jitter(rng, ry * 0.2))}`,
-    );
-  }
-  return out;
+  return memo(`ss|${cx}|${cy}|${rx}|${ry}|${strokes}|${seed}`, () => {
+    const rng = makeRng(seed);
+    const out: string[] = [];
+    for (let i = 0; i < strokes; i++) {
+      const t = strokes === 1 ? 0.5 : i / (strokes - 1);
+      const spread = 1 - Math.abs(t - 0.5) * 1.1;
+      const y = cy - ry + t * ry * 2;
+      const half = rx * spread + jitter(rng, rx * 0.09);
+      const x0 = cx - half + jitter(rng, rx * 0.12);
+      const x1 = cx + half + jitter(rng, rx * 0.12);
+      const my = y + jitter(rng, ry * 0.35);
+      out.push(
+        `M ${r(x0)} ${r(y + jitter(rng, ry * 0.2))} Q ${r((x0 + x1) / 2)} ${r(
+          my,
+        )} ${r(x1)} ${r(y + jitter(rng, ry * 0.2))}`,
+      );
+    }
+    return out;
+  });
 }
 
 /**
@@ -396,17 +448,19 @@ export function roughRing(
   ry: number,
   seed: string,
 ): string {
-  const rng = makeRng(seed);
-  const points: Point[] = [];
-  const from = -0.35 + jitter(rng, 0.2);
-  const to = from + Math.PI * 2 * (0.94 + rng() * 0.16);
-  const steps = 16;
-  for (let i = 0; i <= steps; i++) {
-    const t = from + ((to - from) * i) / steps;
-    points.push([
-      cx + Math.cos(t) * (rx + jitter(rng, rx * 0.05)),
-      cy + Math.sin(t) * (ry + jitter(rng, ry * 0.06)),
-    ]);
-  }
-  return smoothPath(points, false);
+  return memo(`rg|${cx}|${cy}|${rx}|${ry}|${seed}`, () => {
+    const rng = makeRng(seed);
+    const points: Point[] = [];
+    const from = -0.35 + jitter(rng, 0.2);
+    const to = from + Math.PI * 2 * (0.94 + rng() * 0.16);
+    const steps = 16;
+    for (let i = 0; i <= steps; i++) {
+      const t = from + ((to - from) * i) / steps;
+      points.push([
+        cx + Math.cos(t) * (rx + jitter(rng, rx * 0.05)),
+        cy + Math.sin(t) * (ry + jitter(rng, ry * 0.06)),
+      ]);
+    }
+    return smoothPath(points, false);
+  });
 }

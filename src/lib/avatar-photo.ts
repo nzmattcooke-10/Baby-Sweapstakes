@@ -8,7 +8,10 @@
  * only be called from client components.
  */
 export async function fileToAvatarPhoto(file: File): Promise<string> {
-  const SIZE = 256;
+  // 160px is still crisp at the board's ~34px chips, and the board embeds each
+  // photo once per panel — so a smaller thumbnail meaningfully shrinks the
+  // rendered payload (and the D1 row) versus a larger one.
+  const SIZE = 160;
   const bitmap = await createImageBitmap(file, {
     imageOrientation: "from-image",
   });
@@ -24,5 +27,5 @@ export async function fileToAvatarPhoto(file: File): Promise<string> {
   ctx.drawImage(bitmap, (SIZE - w) / 2, (SIZE - h) / 2, w, h);
   bitmap.close();
 
-  return canvas.toDataURL("image/jpeg", 0.82);
+  return canvas.toDataURL("image/jpeg", 0.72);
 }
