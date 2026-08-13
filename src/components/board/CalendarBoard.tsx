@@ -99,6 +99,7 @@ export function CalendarBoard({
                     selected={person.participantId === selectedId}
                     onSelect={onSelect}
                     size={22}
+                    struck={day.isPast}
                   />
                 ))}
               </div>

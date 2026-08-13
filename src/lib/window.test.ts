@@ -42,6 +42,18 @@ describe("calendar window", () => {
     expect(w.start).toBe(START);
   });
 
+  it("keeps passed days with rollForward:false (board grid)", () => {
+    // The board starts before today so a guess whose day has gone stays on the
+    // grid, flagged isPast, instead of dropping off as the picker's would.
+    const w = calendarWindow("2026-08-10", END, DUE, "2026-08-14", {
+      rollForward: false,
+    });
+    expect(w.start).toBe("2026-08-10");
+    expect(w.days[0].iso).toBe("2026-08-10");
+    expect(w.days[0].isPast).toBe(true);
+    expect(w.days.find((d) => d.iso === "2026-08-14")?.isPast).toBe(false);
+  });
+
   it("flags the due date exactly once", () => {
     const w = calendarWindow(START, END, DUE, START);
     expect(w.days.filter((d) => d.isDueDate)).toHaveLength(1);

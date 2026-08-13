@@ -17,6 +17,7 @@ export function AvatarChip({
   selected,
   onSelect,
   size = 34,
+  struck = false,
 }: {
   entry: BoardEntry;
   /** Spoken alongside the name, e.g. "Saturday 15 August". */
@@ -24,13 +25,15 @@ export function AvatarChip({
   selected: boolean;
   onSelect: (id: string | null) => void;
   size?: number;
+  /** Cross the avatar out — used on the calendar for a day that's now passed. */
+  struck?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={() => onSelect(selected ? null : entry.participantId)}
       aria-expanded={selected}
-      className={`rounded-full ${
+      className={`relative rounded-full ${
         selected
           ? "ring-[3px] ring-ink ring-offset-[3px] ring-offset-[var(--hl-yellow)]"
           : "ring-2 ring-surface"
@@ -43,8 +46,30 @@ export function AvatarChip({
         photo={entry.avatarPhoto}
         size={size}
       />
+      {struck && (
+        // A hand-drawn red cross for a guess whose day has gone by. Drawn over
+        // the avatar, ignoring pointer events so the chip stays tappable.
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 100 100"
+          width={size}
+          height={size}
+          className="pointer-events-none absolute inset-0"
+        >
+          <g
+            stroke="var(--danger)"
+            strokeWidth="11"
+            strokeLinecap="round"
+            fill="none"
+          >
+            <path d="M17 21 Q54 47 84 82" />
+            <path d="M83 20 Q49 51 16 83" />
+          </g>
+        </svg>
+      )}
       <span className="sr-only">
         {entry.displayName}: {detail}
+        {struck ? " (this day has passed)" : ""}
       </span>
     </button>
   );

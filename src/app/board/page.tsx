@@ -5,8 +5,14 @@ import { Board } from "@/components/board/Board";
 import { SignOutButton } from "@/components/SignOutButton";
 import { LockedBoard } from "@/components/board/LockedBoard";
 import { getBoardView } from "@/lib/board-access";
-import { getWindow, requireUser } from "@/lib/data";
-import { daysBetween, formatLongDate, todayISO } from "@/lib/window";
+import { requireUser } from "@/lib/data";
+import {
+  calendarWindow,
+  daysBetween,
+  formatLongDate,
+  minISO,
+  todayISO,
+} from "@/lib/window";
 
 export default async function BoardPage(props: {
   searchParams: Promise<{ justCommitted?: string | string[] }>;
@@ -15,8 +21,27 @@ export default async function BoardPage(props: {
   const { participant, sweepstake } = await requireUser();
 
   const view = await getBoardView(participant.committedAt !== null);
-  const win = await getWindow(sweepstake);
-  const daysToGo = daysBetween(todayISO(), sweepstake.dueDate);
+
+  // Keep the board grid back to the earliest committed guess (but no further),
+  // so a guess whose day has already passed stays on the calendar — crossed out
+  // — instead of dropping off as the window rolls forward. Today onward always
+  // shows. `rollForward: false` is what lets the start sit before today.
+  const today = todayISO();
+  const guessedDates =
+    view.state === "open"
+      ? view.entries
+          .map((e) => e.birthDate)
+          .filter((d): d is string => d !== null)
+      : [];
+  const boardStart = guessedDates.reduce((earliest, d) => minISO(earliest, d), today);
+  const win = calendarWindow(
+    boardStart,
+    sweepstake.calendarEnd,
+    sweepstake.dueDate,
+    today,
+    { rollForward: false },
+  );
+  const daysToGo = daysBetween(today, sweepstake.dueDate);
 
   return (
     <main id="main" className="mx-auto flex max-w-2xl flex-col gap-5 px-4 pt-6 pb-14">

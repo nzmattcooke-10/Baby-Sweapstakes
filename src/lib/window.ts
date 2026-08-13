@@ -50,6 +50,10 @@ export function maxISO(a: string, b: string): string {
   return a > b ? a : b;
 }
 
+export function minISO(a: string, b: string): string {
+  return a < b ? a : b;
+}
+
 export function isPast(iso: string, today = todayISO()): boolean {
   return iso < today;
 }
@@ -82,19 +86,21 @@ export type CalendarWindow = {
 /**
  * Build the guessing grid.
  *
- * The window rolls forward: the effective start is always max(today, stored
- * start), so if the baby runs late the passed days drop out of the grid rather
- * than sitting there as dead squares people can still bet on. Guesses already
- * sitting on a passed day are unaffected — they still render on the board and
- * still score; they just can't be newly picked.
+ * The window rolls forward for the *picker*: the effective start is max(today,
+ * stored start), so a late baby's passed days drop out rather than sitting there
+ * as dead squares people can still bet on. The *board* passes `rollForward:
+ * false` and its own earlier start, so a guess whose day has gone by stays on
+ * the grid (rendered crossed out) instead of vanishing. `isPast` marks those
+ * days either way.
  */
 export function calendarWindow(
   storedStart: string,
   end: string,
   dueDate: string,
   today: string = todayISO(),
+  { rollForward = true }: { rollForward?: boolean } = {},
 ): CalendarWindow {
-  const start = maxISO(storedStart, today);
+  const start = rollForward ? maxISO(storedStart, today) : storedStart;
   const days: CalendarDay[] = [];
 
   // A fully-elapsed window (a very late baby) yields no days rather than a
