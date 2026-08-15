@@ -1,5 +1,6 @@
 "use client";
 
+import { BabySvg } from "@/components/baby/BabySvg";
 import type { BoardEntry } from "@/lib/board-access";
 import type { IconName } from "@/components/zine/Icon";
 import { AvatarChip } from "./AvatarChip";
@@ -20,6 +21,20 @@ export type AxisItem = {
   label: string;
 };
 
+/**
+ * Where the real baby landed on this axis. Rendered below the ruler on a solid
+ * stem, opposite the guesses' dotted ones, so the truth never reads as just
+ * another guess — and it can't collide with the swarm above.
+ */
+export type AxisActual = {
+  value: number;
+  /** Spoken description, e.g. "Eleanor weighed 2.95 kg". */
+  label: string;
+  weightGrams: number;
+  lengthMm: number;
+  headwear: "bonnet" | "cap" | "none";
+};
+
 const CHIP = 34;
 const LANE_HEIGHT = 38;
 
@@ -36,11 +51,13 @@ export function AxisPanel({
   onSelect,
   trackClassName,
   trackStyle,
+  actual,
+  winners,
 }: {
   title: string;
   icon: IconName;
   box?: "drawn" | "drawn-b" | "drawn-c" | "drawn-d";
-  summary?: string;
+  summary?: React.ReactNode;
   items: AxisItem[];
   min: number;
   max: number;
@@ -49,7 +66,13 @@ export function AxisPanel({
   onSelect: (id: string | null) => void;
   trackClassName?: string;
   trackStyle?: React.CSSProperties;
+  /** The real result, once the host has entered it. */
+  actual?: AxisActual | null;
+  /** Participant ids with the closest guess — more than one when tied. */
+  winners?: string[];
 }) {
+  const wonBy = new Set(winners ?? []);
+  const decided = wonBy.size > 0;
   // Ascending, so tab order runs lightest-to-heaviest / earliest-to-latest.
   const sorted = [...items].sort((a, b) => a.value - b.value);
   const positions = sorted.map(
@@ -111,6 +134,8 @@ export function AxisPanel({
                 selected={item.entry.participantId === selectedId}
                 onSelect={onSelect}
                 size={CHIP}
+                won={wonBy.has(item.entry.participantId)}
+                dimmed={decided && !wonBy.has(item.entry.participantId)}
               />
             </div>
           ))}
@@ -125,6 +150,31 @@ export function AxisPanel({
             ...trackStyle,
           }}
         />
+
+        {/* The real baby, hanging under the ruler on a solid stem. */}
+        {actual && (
+          <div className="relative h-[52px]">
+            <div
+              className="absolute top-0 flex -translate-x-1/2 flex-col items-center"
+              style={{
+                left: `${((actual.value - min) / (max - min)) * 100}%`,
+              }}
+            >
+              <span
+                aria-hidden="true"
+                className="w-0 border-l-[3px] border-ink"
+                style={{ height: 8 }}
+              />
+              <BabySvg
+                weightGrams={actual.weightGrams}
+                lengthMm={actual.lengthMm}
+                headwear={actual.headwear}
+                width={38}
+              />
+            </div>
+            <p className="sr-only">{actual.label}</p>
+          </div>
+        )}
 
         <div aria-hidden="true" className="relative mt-1.5 h-6">
           {ticks.map((tick) => (

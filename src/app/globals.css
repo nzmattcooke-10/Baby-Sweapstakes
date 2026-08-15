@@ -546,6 +546,50 @@ input[type="range"].toy-slider:focus-visible::-moz-range-thumb {
   animation: draw-on 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/**
+ * The arrival wave: two drawn poses swapped like a flipbook.
+ *
+ * A tween between arm positions would be a computer moving a vector. Cutting
+ * between two hands-down and hands-up drawings is how a flipbook does it, which
+ * is the register this whole illustration set is in.
+ */
+@keyframes baby-frame-a {
+  0%, 49.99% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+@keyframes baby-frame-b {
+  0%, 49.99% { opacity: 0; }
+  50%, 100% { opacity: 1; }
+}
+
+.baby-frame-a { animation: baby-frame-a 900ms infinite; }
+.baby-frame-b { animation: baby-frame-b 900ms infinite; }
+
+/**
+ * Confetti thrown in from both wings. Each scrap carries its own trajectory in
+ * custom properties, so one keyframe covers the lot and the browser only ever
+ * animates transform and opacity.
+ */
+@keyframes confetti-fly {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+    opacity: 0;
+  }
+  /* Solid for most of the flight, then gone — fading the whole way across made
+     the scraps look like dust rather than paper. */
+  6% { opacity: 1; }
+  72% { opacity: 1; }
+  100% {
+    transform: translate3d(var(--dx), var(--dy), 0) rotate(var(--rot));
+    opacity: 0;
+  }
+}
+
+.confetti-piece {
+  animation: confetti-fly var(--dur) cubic-bezier(0.15, 0.6, 0.45, 1) var(--delay) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   /* The baby still morphs — that is content. The flourishes stop. */
   .ink-in,
@@ -555,6 +599,10 @@ input[type="range"].toy-slider:focus-visible::-moz-range-thumb {
   .draw-on {
     stroke-dasharray: none;
   }
+  /* Hold the arms-down drawing and drop the confetti entirely. */
+  .baby-frame-a { animation: none; opacity: 1; }
+  .baby-frame-b { animation: none; opacity: 0; }
+  .confetti { display: none; }
   * {
     transition-duration: 0.01ms !important;
   }

@@ -1,5 +1,6 @@
 "use client";
 
+import { BabySvg } from "@/components/baby/BabySvg";
 import type { BoardEntry } from "@/lib/board-access";
 import { Icon } from "@/components/zine/Icon";
 import { WEEKDAY_LABELS, formatShortDate, type CalendarWindow } from "@/lib/window";
@@ -18,12 +19,28 @@ export function CalendarBoard({
   entries,
   selectedId,
   onSelect,
+  actualDate,
+  baby,
+  summary,
+  winners,
 }: {
   window: CalendarWindow;
   entries: BoardEntry[];
   selectedId: string | null;
   onSelect: (id: string | null) => void;
+  /** The day the baby actually arrived, once known. */
+  actualDate?: string | null;
+  /** The baby's shape, for the drawing that marks the arrival day. */
+  baby?: {
+    weightGrams: number;
+    lengthMm: number;
+    headwear: "bonnet" | "cap" | "none";
+  } | null;
+  summary?: React.ReactNode;
+  winners?: string[];
 }) {
+  const wonBy = new Set(winners ?? []);
+  const decided = wonBy.size > 0;
   const byDate = new Map<string, BoardEntry[]>();
   for (const entry of entries) {
     if (!entry.birthDate) continue;
@@ -48,7 +65,7 @@ export function CalendarBoard({
       title="The day"
       icon="day"
       box="drawn"
-      summary={`${entries.length} guesses across the window`}
+      summary={summary ?? `${entries.length} guesses across the window`}
       columns={["Who", "Day"]}
       rows={rows}
     >
@@ -69,27 +86,47 @@ export function CalendarBoard({
 
         {win.days.map((day) => {
           const people = byDate.get(day.iso) ?? [];
+          // The day it actually happened outranks the day it was due, so it
+          // takes the cell's colour and the due-date star steps aside.
+          const isBirthDay = actualDate === day.iso;
           return (
             <div
               key={day.iso}
-              className="min-h-[62px] border-[2px] border-ink p-0.5"
+              className={`min-h-[62px] p-0.5 ${
+                isBirthDay ? "border-[3px] border-ink" : "border-[2px] border-ink"
+              }`}
               style={{
                 borderRadius: "var(--radius-tick)",
-                background: day.isDueDate ? "var(--hl-yellow)" : "var(--surface-sunk)",
-                color: day.isDueDate ? "#111" : undefined,
+                background: isBirthDay
+                  ? "var(--hl-teal)"
+                  : day.isDueDate
+                    ? "var(--hl-yellow)"
+                    : "var(--surface-sunk)",
+                color: isBirthDay || day.isDueDate ? "#111" : undefined,
               }}
             >
               <div
                 aria-hidden="true"
                 className={`marker-caps text-center text-xs leading-tight ${
-                  day.isDueDate ? "" : "text-ink-soft"
+                  isBirthDay || day.isDueDate ? "" : "text-ink-soft"
                 }`}
               >
                 {day.dayOfMonth}
-                {day.isDueDate && (
-                  <Icon name="star" size={11} className="mx-auto" strokeWidth={2.6} />
+                {isBirthDay ? (
+                  <BabySvg
+                    weightGrams={baby?.weightGrams ?? 3400}
+                    lengthMm={baby?.lengthMm ?? 500}
+                    headwear={baby?.headwear ?? "none"}
+                    width={26}
+                    className="mx-auto"
+                  />
+                ) : (
+                  day.isDueDate && (
+                    <Icon name="star" size={11} className="mx-auto" strokeWidth={2.6} />
+                  )
                 )}
               </div>
+              {isBirthDay && <span className="sr-only">The baby arrived today.</span>}
               <div className="flex flex-wrap justify-center gap-0.5">
                 {people.map((person) => (
                   <AvatarChip
@@ -99,7 +136,12 @@ export function CalendarBoard({
                     selected={person.participantId === selectedId}
                     onSelect={onSelect}
                     size={22}
-                    struck={day.isPast}
+                    // The cross means "this day went by without a baby". Once
+                    // she's actually here it says nothing, and it clashed with
+                    // the winner's star — so the result takes over from it.
+                    struck={day.isPast && !actualDate}
+                    won={wonBy.has(person.participantId)}
+                    dimmed={decided && !wonBy.has(person.participantId)}
                   />
                 ))}
               </div>

@@ -4,12 +4,15 @@ import { Icon } from "@/components/zine/Icon";
 import { Board } from "@/components/board/Board";
 import { SignOutButton } from "@/components/SignOutButton";
 import { LockedBoard } from "@/components/board/LockedBoard";
+import { ArrivalPanel } from "@/components/board/ArrivalPanel";
 import { getBoardView } from "@/lib/board-access";
-import { requireUser } from "@/lib/data";
+import { getResult, requireUser } from "@/lib/data";
+import { scoreAll, type ParticipantInput } from "@/lib/scoring";
 import {
   calendarWindow,
   daysBetween,
   formatLongDate,
+  maxISO,
   minISO,
   todayISO,
 } from "@/lib/window";
@@ -21,6 +24,40 @@ export default async function BoardPage(props: {
   const { participant, sweepstake } = await requireUser();
 
   const view = await getBoardView(participant.committedAt !== null);
+  const result = await getResult(sweepstake.id);
+
+  // "Anything known" rather than "revealed", so the announcement and the markers
+  // appear the moment the host saves the first detail.
+  const arrived =
+    result !== null &&
+    (result.actualDate !== null ||
+      result.actualMinuteOfDay !== null ||
+      result.actualWeightGrams !== null ||
+      result.actualLengthMm !== null ||
+      result.actualSex !== null);
+
+  // Winners are computed from the same committed entries the board shows, so
+  // the crowns on the panels can never disagree with the avatars beside them.
+  // `closest` is an array per category — ties are expected, not an edge case.
+  const winners =
+    arrived && view.state === "open"
+      ? scoreAll(
+          view.entries.map(
+            (e): ParticipantInput => ({
+              participantId: e.participantId,
+              guess: {
+                birthDate: e.birthDate,
+                birthMinuteOfDay: e.birthMinuteOfDay,
+                weightGrams: e.weightGrams,
+                lengthMm: e.lengthMm,
+                sex: e.sex,
+              },
+            }),
+          ),
+          result!,
+          sweepstake.scoringWeights,
+        ).closest
+      : null;
 
   // Keep the board grid back to the earliest committed guess (but no further),
   // so a guess whose day has already passed stays on the calendar — crossed out
@@ -33,10 +70,15 @@ export default async function BoardPage(props: {
           .map((e) => e.birthDate)
           .filter((d): d is string => d !== null)
       : [];
-  const boardStart = guessedDates.reduce((earliest, d) => minISO(earliest, d), today);
+  // The birth date itself is folded in, or an early arrival would be marked on
+  // a day the grid doesn't draw.
+  const boardStart = [...guessedDates, result?.actualDate ?? today].reduce(
+    (earliest, d) => minISO(earliest, d),
+    today,
+  );
   const win = calendarWindow(
     boardStart,
-    sweepstake.calendarEnd,
+    maxISO(sweepstake.calendarEnd, result?.actualDate ?? sweepstake.calendarEnd),
     sweepstake.dueDate,
     today,
     { rollForward: false },
@@ -81,7 +123,11 @@ export default async function BoardPage(props: {
         </p>
       )}
 
-      {sweepstake.status !== "open" && (
+      {/* Shown to everyone, even someone who never locked a guess in — the
+          guesses are the game, but the news belongs to the whole family. */}
+      {arrived && <ArrivalPanel result={result!} dueDate={sweepstake.dueDate} />}
+
+      {sweepstake.status !== "open" && !arrived && (
         <p className="drawn-b px-4 py-3 text-center text-lg">
           Entries are closed — the baby&rsquo;s on the way.
         </p>
@@ -91,7 +137,13 @@ export default async function BoardPage(props: {
         <LockedBoard committed={view.committed} total={view.total} />
       ) : (
         <>
-          <Board entries={view.entries} window={win} />
+          <Board
+            entries={view.entries}
+            window={win}
+            actual={result}
+            winners={winners}
+            babyName={result?.actualName ?? null}
+          />
 
           {view.missing.length > 0 && (
             <section className="drawn-c px-4 py-4">

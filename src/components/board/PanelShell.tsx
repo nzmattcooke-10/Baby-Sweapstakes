@@ -49,7 +49,9 @@ export function PanelShell({
 }: {
   title: string;
   icon: IconName;
-  summary?: string;
+  /** Sits under the title in *both* views, so a winner badge survives the
+      picture/list toggle. Takes markup, not just a string, for that reason. */
+  summary?: React.ReactNode;
   columns: string[];
   rows: PanelRow[];
   /** Which of the four drawn rectangles to use, so a stack doesn't repeat. */
@@ -95,7 +97,8 @@ export function PanelShell({
             </span>
           </button>
         </div>
-        {summary && <p className="mt-2 text-base text-ink-soft">{summary}</p>}
+        {/* A div, not a p: the summary can now carry a winner badge. */}
+        {summary && <div className="mt-2 text-base text-ink-soft">{summary}</div>}
       </div>
 
       {/* The picture, with its avatar buttons left reachable and announced. */}
