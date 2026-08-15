@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_SCORING_WEIGHTS as W } from "@/db/schema";
 import {
+  CATEGORY_ORDER,
   normaliseName,
   scoreAll,
   scoreCategory,
@@ -138,6 +139,66 @@ describe("scoreAll", () => {
     expect(board.closest.date).toEqual(["perfect"]);
     // All three guessed 3400g except wayOff, so two tie on weight.
     expect(board.closest.weight.sort()).toEqual(["closeish", "perfect"]);
+  });
+
+  it("always crowns exactly the minimum-distance guesses, in every category", () => {
+    // The load-bearing promise of the whole game: the winner of a category is
+    // whoever guessed closest — no one nearer left out, no one further in.
+    // Recomputed here from the distances rather than trusting `closest`.
+    const board = scoreAll(inputs, fullActual, W);
+
+    for (const category of CATEGORY_ORDER) {
+      const contenders = board.participants.filter(
+        (p) =>
+          p.categories[category].points !== null &&
+          Number.isFinite(p.categories[category].distance) &&
+          // Boy-or-girl only has a winner when somebody was actually right.
+          (category !== "sex" || p.categories[category].distance === 0),
+      );
+      if (contenders.length === 0) {
+        expect(board.closest[category]).toEqual([]);
+        continue;
+      }
+
+      const best = Math.min(
+        ...contenders.map((p) => p.categories[category].distance),
+      );
+      const expected = contenders
+        .filter((p) => p.categories[category].distance === best)
+        .map((p) => p.participantId);
+
+      expect([...board.closest[category]].sort()).toEqual([...expected].sort());
+
+      // And nobody strictly closer was left out of the winners' circle.
+      for (const p of board.participants) {
+        if (board.closest[category].includes(p.participantId)) continue;
+        expect(p.categories[category].distance).toBeGreaterThanOrEqual(best);
+      }
+    }
+  });
+
+  it("crowns nobody for boy-or-girl when the whole family guessed wrong", () => {
+    // Being wrong isn't "close" in a two-way category — without this, everyone
+    // ties at distance 1 and the panel would declare the lot of them winners.
+    const allWrong = scoreAll(
+      [
+        { participantId: "a", guess: { ...perfectGuess, sex: "boy" as const } },
+        { participantId: "b", guess: { ...perfectGuess, sex: "boy" as const } },
+      ],
+      { ...fullActual, actualSex: "girl" },
+      W,
+    );
+    expect(allWrong.closest.sex).toEqual([]);
+
+    const oneRight = scoreAll(
+      [
+        { participantId: "a", guess: { ...perfectGuess, sex: "girl" as const } },
+        { participantId: "b", guess: { ...perfectGuess, sex: "boy" as const } },
+      ],
+      { ...fullActual, actualSex: "girl" },
+      W,
+    );
+    expect(oneRight.closest.sex).toEqual(["a"]);
   });
 
   it("only counts categories the host has actually entered", () => {

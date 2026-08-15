@@ -207,7 +207,11 @@ export function scoreAll(
     const contenders = scored.filter(
       (p) =>
         p.categories[category].points !== null &&
-        Number.isFinite(p.categories[category].distance),
+        Number.isFinite(p.categories[category].distance) &&
+        // Boy-or-girl is the one category with no "close". A wrong guess still
+        // has a finite distance of 1, so without this everybody would be
+        // declared closest whenever the whole family guessed the wrong way.
+        (category !== "sex" || p.categories[category].distance === 0),
     );
 
     if (scored.some((p) => p.categories[category].points !== null)) {
