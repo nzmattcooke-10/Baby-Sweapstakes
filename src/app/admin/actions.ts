@@ -68,6 +68,8 @@ export type ResultInput = {
   actualWeightGrams: number | null;
   actualLengthMm: number | null;
   actualSex: "boy" | "girl" | null;
+  /** The baby's name, for the announcement. Never scored — nobody guesses it. */
+  actualName: string | null;
 };
 
 /**
@@ -77,7 +79,11 @@ export type ResultInput = {
  */
 export async function saveResult(input: ResultInput): Promise<AdminResult> {
   await requireAdmin();
-  await saveActualResult({ ...input, actualName: null });
+  const actualName = input.actualName?.trim() || null;
+  if (actualName !== null && actualName.length > 40) {
+    return { ok: false, error: "That name is a bit long — 40 characters max." };
+  }
+  await saveActualResult({ ...input, actualName });
 
   revalidatePath("/", "layout");
   return { ok: true };

@@ -309,6 +309,7 @@ function ResultForm({
     result?.actualLengthMm != null ? (result.actualLengthMm / 10).toFixed(1) : "",
   );
   const [sex, setSex] = useState<"" | "boy" | "girl">(result?.actualSex ?? "");
+  const [babyName, setBabyName] = useState(result?.actualName ?? "");
 
   function submit() {
     const [h, m] = time.split(":").map(Number);
@@ -320,6 +321,7 @@ function ResultForm({
           actualWeightGrams: kg ? Math.round(Number(kg) * 1000) : null,
           actualLengthMm: cm ? Math.round(Number(cm) * 10) : null,
           actualSex: sex || null,
+          actualName: babyName || null,
         }),
       "Result saved — the scores are live.",
     );
@@ -333,6 +335,18 @@ function ResultForm({
       </p>
 
       <div className="flex flex-col gap-3">
+        <label className="flex flex-col gap-1 text-sm">
+          Baby&rsquo;s name (for the announcement)
+          <input
+            type="text"
+            value={babyName}
+            maxLength={40}
+            placeholder="Eleanor"
+            onChange={(e) => setBabyName(e.target.value)}
+            className="min-h-[48px] field px-3 text-lg"
+          />
+        </label>
+
         <label className="flex flex-col gap-1 text-sm">
           Date of birth
           <input
